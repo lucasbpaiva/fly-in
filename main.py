@@ -2,6 +2,15 @@ import argparse
 
 
 def parse_argv() -> argparse.Namespace:
+    """Parse command-line arguments for the drone routing simulation.
+
+    Configures the argument parser to accept a mandatory map file path
+    and an optional flag to trigger the graphical visualization engine.
+
+    Returns:
+        An object containing the parsed command-line arguments.
+        Expected attributes are 'map_file' (str) and 'visualize' (bool).
+    """
     parser = argparse.ArgumentParser(description="Drone Routing Simulation")
     # Positional argument for the map file
     example: str = "(e.g., maps/easy/01_linear_path.txt)"
@@ -13,6 +22,13 @@ def parse_argv() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Execute the core workflow of the simulation.
+
+    Acts as the main entry point. It fetches command-line arguments,
+    initializes the Pydantic parser for the selected map, executes the
+    pathfinding algorithm, prints standard terminal output
+    and conditionally launches the Pygame interface.
+    """
     args = parse_argv()
     # Parse the map using args.map_file (str) and run the core algorithm
     # Always print the required D<ID>-<zone> format to the terminal
