@@ -1,0 +1,12 @@
+# Visualization
+pygame-ce
+
+# Parsing and Validation
+pydantic
+
+# Linting and Type Checking
+flake8
+mypy
+
+# Testing Framework
+pytest
