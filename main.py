@@ -12,7 +12,7 @@ def parse_argv() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_argv()
     # Parse the map using args.map_file (str) and run the core algorithm
     # Always print the required D<ID>-<zone> format to the terminal
