@@ -6,6 +6,7 @@ pydantic
 
 # Linting and Type Checking
 flake8
+flake8-docstrings
 mypy
 
 # Testing Framework
