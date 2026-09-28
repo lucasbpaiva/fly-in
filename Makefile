@@ -4,7 +4,7 @@ PIP = $(VENV)/bin/pip
 FLAKE8 = $(VENV)/bin/flake8
 MYPY = $(VENV)/bin/mypy
 # Define a default map to run if no argument is passed
-MAP ?= maps/easy_1.map
+MAP ?= maps/easy/01_linear_path.txt
 ARGS ?=
 
 $(VENV)/bin/activate: requirements.txt
