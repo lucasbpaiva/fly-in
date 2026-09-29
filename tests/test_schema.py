@@ -23,9 +23,10 @@ class TestZoneSchema:
         """Zone names must not contain spaces or dashes."""
         with pytest.raises(ValidationError) as exc_info:
             ZoneSchema(name=invalid_name, x=1, y=1)
+        error_msg = str(exc_info.value).lower()
         assert (
-            "string does not match regex" in str(exc_info.value).lower()
-            or "dash" in str(exc_info.value).lower()
+            "should match pattern" in error_msg
+            or "string_pattern_mismatch" in error_msg
         )
 
 
@@ -51,7 +52,11 @@ class TestZoneMetadata:
         """Capacities must be positive integers."""
         with pytest.raises(ValidationError) as exc_info:
             ZoneMetadata(max_drones=invalid_capacity)
-        assert "greater than 0" in str(exc_info.value).lower()
+        error_msg = str(exc_info.value).lower()
+        assert (
+                "greater_than_equal" in error_msg
+                or "input should be greater than or equal to 1" in error_msg
+        )
 
     def test_invalid_zone_type(self) -> None:
         """Zone types must strictly belong to the allowed Enum."""
