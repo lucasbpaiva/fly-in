@@ -31,6 +31,8 @@ class Zone:
                 and marks as destination.
         """
         self.name: str = zone.name
+        self.x: int = zone.x
+        self.y: int = zone.y
         self.type: ZoneType = zone.metadata.zone_type
         self.capacity: int = zone.metadata.max_drones
         self.is_start: bool = is_start
