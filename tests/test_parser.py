@@ -37,13 +37,13 @@ class TestMapParser:
         assert parsed_data.end_zone.name == "goal"
         # Verify Standard Hubs
         assert "roof1" in parsed_data.zones
-        assert parsed_data.zones["roof1"].metadata.zone == ZoneType.RESTRICTED
+        assert parsed_data.zones["roof1"].type == ZoneType.RESTRICTED
         assert parsed_data.zones["roof1"].x == 3
         assert "roof2" in parsed_data.zones
-        assert parsed_data.zones["roof2"].metadata.zone == ZoneType.NORMAL
+        assert parsed_data.zones["roof2"].type == ZoneType.NORMAL
         # Verify Connections
         assert len(parsed_data.connections) == 3
-        assert parsed_data.connections[0].metadata.max_link_capacity == 2
+        assert parsed_data.connections[0].capacity == 2
 
     def test_missing_drones_definition(self, tmp_path: Path) -> None:
         """The first line (ignoring comments) must define nb_drones."""
@@ -72,7 +72,7 @@ class TestMapParser:
             MapParser(filepath=str(map_file)).parse()
 
     def test_duplicate_connections_rejected(self, tmp_path: Path) -> None:
-        """The same connection must not appear more than once (a-b and b-a)."""
+        """Same connection must not appear more than once (a-b and b-a)."""
         content = """nb_drones: 2
             start_hub: a 0 0
             end_hub: b 1 1
