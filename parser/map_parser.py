@@ -1,6 +1,7 @@
 from typing import Any
 from pathlib import Path
 from dataclasses import dataclass
+from pydantic import ValidationError
 from graph_engine import Zone, Connection
 from schemas import ZoneSchema, ConnectionSchema
 
@@ -100,12 +101,73 @@ class MapParser:
             "metadata": metadata_dict
         }
 
+    @staticmethod
+    def parse_connection_line(line: str) -> dict[str, Any]:
+        """Extracts parameters and metadata from a connection line.
+
+        Args:
+            line: The raw string line
+                (e.g., 'connection: corridorA-tunnelB [max_link_capacity=2]')
+
+        Returns:
+            A dictionary containing 'zone1', 'zone2', and a 'metadata' dict.
+        """
+        raw_data = line[len("connection:"):].strip()
+        # Separate core parameters from the optional metadata block
+        core_str = raw_data
+        meta_str = ""
+        if "[" in raw_data or "]" in raw_data:
+            if (
+                not raw_data.endswith("]")
+                or raw_data.count("[") != 1
+                or raw_data.count("]") != 1
+            ):
+                raise ValueError(
+                    "Malformed metadata brackets."
+                    " Must format as: [key=val ...]"
+                )
+            # Split at the bracket and remove the trailing ']'
+            core_str, meta_str = raw_data.split("[", 1)
+            meta_str = meta_str.rstrip("]")
+        # Validate exactly 2 core parameters (<zone1>-<zone2>)
+        core_tokens = core_str.split("-")
+        if len(core_tokens) != 2:
+            raise ValueError(
+                "Expected exactly 2 parameters (<zone1>-<zone2>)"
+                f", got {len(core_tokens)}"
+            )
+        zone1 = core_tokens[0].strip()
+        zone2 = core_tokens[1].strip()
+        if not zone1 or not zone2:
+            raise ValueError("Zone names cannot be empty.")
+        # Assemble the metadata dictionary
+        metadata_dict = {}
+        if meta_str:
+            for token in meta_str.split():
+                if (
+                    "=" not in token
+                    or token.startswith("=")
+                    or token.endswith("=")
+                ):
+                    raise ValueError(
+                        f"Malformed metadata token '{token}'."
+                        " Expected 'key=value'"
+                    )
+                key, val = token.split("=", 1)
+                metadata_dict[key] = val
+        return {
+            "zone1": zone1,
+            "zone2": zone2,
+            "metadata": metadata_dict
+        }
+
     def parse(self) -> Map:
         nb_drones = 0
         start_zone = None
         end_zone = None
         zones: dict[str, Zone] = {}
         connections: list[Connection] = []
+        seen_links: set[tuple[str, str]] = set()
         is_first_valid_line: bool = True
         lines = self.content.splitlines()
         for line_num, raw_line in enumerate(lines, start=1):
@@ -137,35 +199,69 @@ class MapParser:
                         raise ValueError(msg)
                     raw_dict = self.parse_zone_line(line, "start_hub:")
                     schema = ZoneSchema(**raw_dict)
+                    if schema.name in zones:
+                        raise ValueError(
+                            "Duplicate zone definition: "
+                            f"'{schema.name}' already exists."
+                        )
                     start_zone = Zone(schema, is_start=True)
                     zones[schema.name] = start_zone
                 elif line.startswith("end_hub:"):
                     if end_zone is not None:
                         msg = "There must be exactly one end_hub zone"
                         raise ValueError(msg)
-                    # Extract metadata, create ZoneSchema, create Zone(schema, is_end=True)
-                    # Assign to end_zone and add to zones dict
-                    pass
+                    raw_dict = self.parse_zone_line(line, "end_hub:")
+                    schema = ZoneSchema(**raw_dict)
+                    if schema.name in zones:
+                        raise ValueError(
+                            "Duplicate zone definition: "
+                            f"'{schema.name}' already exists."
+                        )
+                    end_zone = Zone(schema, is_end=True)
+                    zones[schema.name] = end_zone
                 elif line.startswith("hub:"):
-                    # Extract metadata, create ZoneSchema, create Zone(schema)
-                    # Add to zones dict
-                    pass
+                    raw_dict = self.parse_zone_line(line, "hub:")
+                    schema = ZoneSchema(**raw_dict)
+                    if schema.name in zones:
+                        raise ValueError(
+                            "Duplicate zone definition: "
+                            f"'{schema.name}' already exists."
+                        )
+                    zones[schema.name] = Zone(schema)
                 elif line.startswith("connection:"):
-                    # Extract string, create ConnectionSchema
-                    # CRITICAL: Verify schema.zone1 and schema.zone2 exist in `zones` dict
-                    # Create Connection(schema) and append to connections list
-                    pass
+                    raw_dict = self.parse_connection_line(line)
+                    schema = ConnectionSchema(**raw_dict)
+                    if schema.zone1 not in zones or schema.zone2 not in zones:
+                        raise ValueError(
+                            "Connection contains an unknown zone: "
+                            f"{schema.zone1}-{schema.zone2}"
+                        )
+                    link_id = (schema.zone1, schema.zone2)
+                    if link_id in seen_links:
+                        raise ValueError(
+                            "Duplicate connection detected: "
+                            f"{schema.zone1}-{schema.zone2}"
+                        )
+                    seen_links.add(link_id)
+                    connections.append(Connection(schema))
                 else:
                     raise ValueError(f"Unknown directive: {line}")
-            except Exception as e:
-                # Catch Pydantic ValidationErrors or custom ValueErrors here
-                # Re-raise as a custom ParsingError with line_num
+            except ValidationError as e:
+                for err in e.errors():
+                    # If it's a field-level error, loc has items
+                    if err['loc']:
+                        msg = f"{err['loc'][0]}: {err['msg']}"
+                    # If it's a model-level error from @model_validator,
+                    # loc is empty
+                    else:
+                        msg = err['msg'].replace("Value error, ", "")
+                    raise ParsingError(f"Error on line {line_num}: {msg}")
+            except ValueError as e:
                 raise ParsingError(f"Error on line {line_num}: {str(e)}")
-        # Final Graph Verification
-        if not nb_drones:
-            raise ParsingError("Missing nb_drones definition.")
         if not start_zone or not end_zone:
-            raise ParsingError("Map must contain exactly one start_hub and one end_hub.")
+            raise ParsingError(
+                "Map must contain exactly one start_hub and one end_hub."
+            )
         return Map(
             nb_drones=nb_drones,
             start_zone=start_zone,
