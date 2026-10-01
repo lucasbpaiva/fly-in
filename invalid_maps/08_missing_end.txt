@@ -1,0 +1,4 @@
+nb_drones: 2
+start_hub: hub 0 0
+hub: a 1 0
+connection: hub-a

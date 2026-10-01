@@ -1,0 +1,6 @@
+nb_drones: 2
+start_hub: hub 0 0
+hub: lava 1 0 [zone=danger]
+end_hub: goal 2 0
+connection: hub-lava
+connection: lava-goal

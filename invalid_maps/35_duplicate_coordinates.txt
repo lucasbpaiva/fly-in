@@ -1,0 +1,12 @@
+nb_drones: 3
+
+start_hub: hub 0 0
+hub: roof1 2 1
+hub: roof2 2 1
+hub: corridor 3 2
+end_hub: goal 5 3
+
+connection: hub-roof1
+connection: roof1-corridor
+connection: corridor-goal
+connection: hub-roof2

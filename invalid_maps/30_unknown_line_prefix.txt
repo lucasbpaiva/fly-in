@@ -1,0 +1,5 @@
+nb_drones: 2
+start_hub: hub 0 0
+airport: runway 1 0
+end_hub: goal 2 0
+connection: hub-goal
