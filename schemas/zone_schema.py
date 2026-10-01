@@ -1,6 +1,7 @@
+import re
 from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class ZoneType(str, Enum):
@@ -23,7 +24,9 @@ class ZoneMetadata(BaseModel):
         color: An optional single-word color for visualization.
         max_drones: The maximum number of drones allowed simultaneously.
     """
-    zone_type: ZoneType = Field(default=ZoneType.NORMAL)
+    # Forbids invalid or misspelled keys
+    model_config = ConfigDict(extra="forbid")
+    zone: ZoneType = Field(default=ZoneType.NORMAL)
     color: Optional[str] = Field(default=None, pattern=r"^[a-zA-Z]+$")
     max_drones: int = Field(default=1, ge=1)
 
@@ -37,7 +40,23 @@ class ZoneSchema(BaseModel):
         y: The vertical coordinate on the graphical grid.
         metadata: The nested capacity and routing constraints.
     """
-    name: str = Field(pattern=r"^[^- ]+$")
+    name: str = Field(min_length=1)
     x: int
     y: int
     metadata: ZoneMetadata = Field(default_factory=ZoneMetadata)
+
+    @model_validator(mode="after")
+    def validate_zone(self) -> "ZoneSchema":
+        """Validate the zone name.
+
+        Prevents dashes or spaces in the zone name.
+
+        Raises:
+            ValueError: If zone name contains dashes or spaces
+
+        Returns:
+            The validated zone instance.
+        """
+        if not re.match(r"^[^- ]+$", self.name):
+            raise ValueError("Zone names cannot contain dashes or spaces")
+        return self

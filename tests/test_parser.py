@@ -80,7 +80,7 @@ class TestMapParser:
             connection: b-a"""
         map_file = tmp_path / "duplicates.map"
         map_file.write_text(content)
-        with pytest.raises(ParsingError, match="duplicate"):
+        with pytest.raises(ParsingError, match="Duplicate"):
             MapParser(filepath=str(map_file)).parse()
 
     def test_undeclared_zone_in_connection(self, tmp_path: Path) -> None:
@@ -91,7 +91,7 @@ class TestMapParser:
             connection: a-ghost_zone"""
         map_file = tmp_path / "ghost.map"
         map_file.write_text(content)
-        with pytest.raises(ParsingError, match="previously defined zones"):
+        with pytest.raises(ParsingError, match="unknown zone"):
             MapParser(filepath=str(map_file)).parse()
 
     def test_invalid_metadata_syntax(self, tmp_path: Path) -> None:

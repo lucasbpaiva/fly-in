@@ -25,7 +25,7 @@ class TestZoneSchema:
             ZoneSchema(name=invalid_name, x=1, y=1)
         error_msg = str(exc_info.value).lower()
         assert (
-            "should match pattern" in error_msg
+            "cannot contain dashes or spaces" in error_msg
             or "string_pattern_mismatch" in error_msg
         )
 
@@ -34,16 +34,16 @@ class TestZoneMetadata:
     def test_default_values(self) -> None:
         """Verify default metadata tags match the subject constraints."""
         meta = ZoneMetadata()
-        assert meta.zone_type == ZoneType.NORMAL
+        assert meta.zone == ZoneType.NORMAL
         assert meta.color is None
         assert meta.max_drones == 1
 
     def test_valid_custom_metadata(self) -> None:
         """Verify valid overriding of metadata fields."""
         meta = ZoneMetadata(
-            zone_type=ZoneType.RESTRICTED, color="red", max_drones=5
+            zone=ZoneType.RESTRICTED, color="red", max_drones=5
         )
-        assert meta.zone_type == ZoneType.RESTRICTED
+        assert meta.zone == ZoneType.RESTRICTED
         assert meta.color == "red"
         assert meta.max_drones == 5
 
