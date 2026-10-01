@@ -1,4 +1,5 @@
 import argparse
+from parser import MapParser, ParsingError
 
 
 def parse_argv() -> argparse.Namespace:
@@ -31,6 +32,10 @@ def main() -> None:
     """
     args = parse_argv()
     # Parse the map using args.map_file (str) and run the core algorithm
+    try:
+        MapParser(args.map_file).parse()
+    except ParsingError as e:
+        print(e)
     # Always print the required D<ID>-<zone> format to the terminal
     # Toggle visualization based on the flag
     if args.visualize:
