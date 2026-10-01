@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 
 
 class ConnectionMetadata(BaseModel):
@@ -8,6 +8,8 @@ class ConnectionMetadata(BaseModel):
         max_link_capacity: The maximum number of drones that can traverse
             this edge simultaneously.
     """
+    # Forbids invalid or misspelled keys
+    model_config = ConfigDict(extra="forbid")
     max_link_capacity: int = Field(default=1, ge=1)
 
 
@@ -24,7 +26,7 @@ class ConnectionSchema(BaseModel):
     metadata: ConnectionMetadata = Field(default_factory=ConnectionMetadata)
 
     @model_validator(mode="after")
-    def validate_zone(self) -> "ConnectionSchema":
+    def validate_connection(self) -> "ConnectionSchema":
         """Validate the connection and alphabetically sort the zone names.
 
         Prevents self-referential loops and normalizes bidirectional
