@@ -8,6 +8,18 @@ from schemas import ZoneSchema, ConnectionSchema
 
 @dataclass
 class Map:
+    """Data Transfer Object representing a fully validated simulation map.
+
+    Acts as a static snapshot of the parsed environment topology, providing
+    the necessary entities to construct the pathfinding graph.
+
+    Attributes:
+        nb_drones: Total number of drones participating in the simulation.
+        start_zone: The designated origin zone where all drones begin.
+        end_zone: The designated destination zone for all drones.
+        zones: A dictionary mapping unique zone names to their Zone instances.
+        connections: A list of all validated bidirectional transit links.
+    """
     nb_drones: int
     start_zone: Zone
     end_zone: Zone
@@ -16,15 +28,36 @@ class Map:
 
 
 class ParsingError(Exception):
+    """Custom exception for invalid map formatting or constraint violations."""
     ...
 
 
 class MapParser:
+    """Parses and validates map configuration files for the drone simulation.
+
+    Reads raw map text, enforces strict formatting and structural constraints,
+    and translates raw strings into validated Pydantic schemas and objects.
+    """
     def __init__(self, filepath: str) -> None:
+        """Initialize the MapParser and load the target file.
+
+        Args:
+            filepath: The string path to the map configuration file.
+        """
         self.path = Path(filepath)
         self.content = self.read_file()
 
     def read_file(self) -> str:
+        """Read and decode the content of the target map file.
+
+        Returns:
+            The raw string content of the file.
+
+        Raises:
+            FileNotFoundError: If the specified path is invalid or missing.
+            PermissionError: If the process lacks read access to the file.
+            IOError: If an unexpected system error occurs during execution.
+        """
         if not self.path.is_file():
             msg: str = f"The path '{self.path}' is not a valid file."
             raise FileNotFoundError(msg)
@@ -162,12 +195,28 @@ class MapParser:
         }
 
     def parse(self) -> Map:
+        """Execute the parsing pipeline to generate a validated Map object.
+
+        Reads the file line-by-line, enforcing sequential constraints (e.g.,
+        nb_drones must be declared first), structural uniqueness (no duplicate
+        names, coordinates or links), and metadata syntax rules.
+
+        Returns:
+            A fully assembled Map dataclass containing the operational
+                entities.
+
+        Raises:
+            ParsingError: If any formatting error, logical contradiction or
+                schema validation failure is detected, formatted with the
+                exact line number.
+        """
         nb_drones = 0
         start_zone = None
         end_zone = None
         zones: dict[str, Zone] = {}
         connections: list[Connection] = []
         seen_links: set[tuple[str, str]] = set()
+        seen_coords: set[tuple[int, int]] = set()
         is_first_valid_line: bool = True
         lines = self.content.splitlines()
         for line_num, raw_line in enumerate(lines, start=1):
@@ -204,6 +253,13 @@ class MapParser:
                             "Duplicate zone definition: "
                             f"'{schema.name}' already exists."
                         )
+                    coords = (schema.x, schema.y)
+                    if coords in seen_coords:
+                        raise ValueError(
+                            f"Duplicate coordinates {coords} for "
+                            f"zone '{schema.name}'"
+                        )
+                    seen_coords.add(coords)
                     start_zone = Zone(schema, is_start=True)
                     zones[schema.name] = start_zone
                 elif line.startswith("end_hub:"):
@@ -217,6 +273,13 @@ class MapParser:
                             "Duplicate zone definition: "
                             f"'{schema.name}' already exists."
                         )
+                    coords = (schema.x, schema.y)
+                    if coords in seen_coords:
+                        raise ValueError(
+                            f"Duplicate coordinates {coords} for "
+                            f"zone '{schema.name}'"
+                        )
+                    seen_coords.add(coords)
                     end_zone = Zone(schema, is_end=True)
                     zones[schema.name] = end_zone
                 elif line.startswith("hub:"):
@@ -227,23 +290,33 @@ class MapParser:
                             "Duplicate zone definition: "
                             f"'{schema.name}' already exists."
                         )
+                    coords = (schema.x, schema.y)
+                    if coords in seen_coords:
+                        raise ValueError(
+                            f"Duplicate coordinates {coords} for "
+                            f"zone '{schema.name}'"
+                        )
+                    seen_coords.add(coords)
                     zones[schema.name] = Zone(schema)
                 elif line.startswith("connection:"):
                     raw_dict = self.parse_connection_line(line)
-                    schema = ConnectionSchema(**raw_dict)
-                    if schema.zone1 not in zones or schema.zone2 not in zones:
+                    conn_schema = ConnectionSchema(**raw_dict)
+                    if (
+                        conn_schema.zone1 not in zones
+                        or conn_schema.zone2 not in zones
+                    ):
                         raise ValueError(
                             "Connection contains an unknown zone: "
-                            f"{schema.zone1}-{schema.zone2}"
+                            f"{conn_schema.zone1}-{conn_schema.zone2}"
                         )
-                    link_id = (schema.zone1, schema.zone2)
+                    link_id = (conn_schema.zone1, conn_schema.zone2)
                     if link_id in seen_links:
                         raise ValueError(
                             "Duplicate connection detected: "
-                            f"{schema.zone1}-{schema.zone2}"
+                            f"{conn_schema.zone1}-{conn_schema.zone2}"
                         )
                     seen_links.add(link_id)
-                    connections.append(Connection(schema))
+                    connections.append(Connection(conn_schema))
                 else:
                     raise ValueError(f"Unknown directive: {line}")
             except ValidationError as e:
