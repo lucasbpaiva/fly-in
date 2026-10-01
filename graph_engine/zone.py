@@ -33,7 +33,7 @@ class Zone:
         self.name: str = zone.name
         self.x: int = zone.x
         self.y: int = zone.y
-        self.type: ZoneType = zone.metadata.zone_type
+        self.type: ZoneType = zone.metadata.zone
         self.capacity: int = zone.metadata.max_drones
         self.is_start: bool = is_start
         self.is_end: bool = is_end
