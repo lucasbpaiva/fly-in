@@ -1,5 +1,7 @@
+import sys
 import argparse
 from parser import MapParser, ParsingError
+from graph_engine import Graph
 
 
 def parse_argv() -> argparse.Namespace:
@@ -30,17 +32,18 @@ def main() -> None:
     pathfinding algorithm, prints standard terminal output
     and conditionally launches the Pygame interface.
     """
-    args = parse_argv()
-    # Parse the map using args.map_file (str) and run the core algorithm
     try:
-        MapParser(args.map_file).parse()
-    except ParsingError as e:
-        print(e)
-    # Always print the required D<ID>-<zone> format to the terminal
-    # Toggle visualization based on the flag
-    if args.visualize:
-        # Initialize pygame and render simulation
-        pass
+        args = parse_argv()
+        parsed_map = MapParser(args.map_file).parse()
+        Graph(parsed_map)
+        # Always print the required D<ID>-<zone> format to the terminal
+        # Toggle visualization based on the flag
+        if args.visualize:
+            # Initialize pygame and render simulation
+            pass
+    except (ParsingError, FileNotFoundError, PermissionError, IOError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
