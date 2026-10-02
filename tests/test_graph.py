@@ -85,8 +85,8 @@ class TestGraph:
         graph = Graph(parsed_map=valid_map_dto)
         neighbors = graph.get_neighbors("ghost_zone")
 
-        assert neighbors == []
-        assert isinstance(neighbors, list)
+        assert neighbors == set()
+        assert isinstance(neighbors, set)
 
     def test_graph_encapsulation(self, valid_map_dto: Map) -> None:
         """Test.
@@ -96,7 +96,7 @@ class TestGraph:
         graph = Graph(parsed_map=valid_map_dto)
 
         neighbors = graph.get_neighbors("start")
-        target_zone = neighbors[0]
+        target_zone = next(iter(neighbors))
 
         # Mutating the returned object should reflect in the central zones
         # dictionary
