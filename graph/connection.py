@@ -26,7 +26,21 @@ class Connection:
         self.zone2: str = connection.zone2
         self.capacity: int = connection.metadata.max_link_capacity
         self.occupants: set[str] = set()
-        self.is_full: bool = len(self.occupants) >= self.capacity
+        self.turn_usage: int = 0
+
+    @property
+    def name(self) -> str:
+        """Provides a polymorphic name interface for standard output."""
+        return f"{self.zone1}-{self.zone2}"
+
+    @property
+    def is_full(self) -> bool:
+        """is_full method.
+
+        Returns True if the connection cannot accept
+        any more traffic this turn.
+        """
+        return (len(self.occupants) + self.turn_usage) >= self.capacity
 
     def can_enter(self) -> bool:
         """Evaluate if the connection can accept an additional drone.
@@ -51,8 +65,6 @@ class Connection:
                 f"Capacity exceeded in connection {self.zone1}-{self.zone2}"
             )
         self.occupants.add(drone)
-        if len(self.occupants) == self.capacity:
-            self.is_full = True
 
     def remove_drone(self, drone: str) -> None:
         """Process drone's departure from the connection and free up capacity.
@@ -64,4 +76,3 @@ class Connection:
             KeyError: If the specified drone is not currently in the zone.
         """
         self.occupants.remove(drone)
-        self.is_full = False
