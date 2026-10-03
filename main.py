@@ -1,7 +1,7 @@
 import sys
 import argparse
 from parser import MapParser, ParsingError
-from graph_engine import Graph
+from graph import Graph
 
 
 def parse_argv() -> argparse.Namespace:

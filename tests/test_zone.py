@@ -1,7 +1,7 @@
 import sys
 import pytest
 from schemas import ZoneSchema, ZoneMetadata, ZoneType
-from graph_engine import Zone
+from graph import Zone
 
 
 @pytest.fixture

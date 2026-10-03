@@ -1,6 +1,6 @@
 import pytest
 from schemas import ConnectionSchema, ConnectionMetadata
-from graph_engine import Connection
+from graph import Connection
 
 
 @pytest.fixture

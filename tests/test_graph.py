@@ -2,7 +2,7 @@ import pytest
 from schemas import (
     ZoneSchema, ZoneMetadata, ConnectionSchema, ConnectionMetadata, ZoneType
 )
-from graph_engine import Zone, Connection, Map, Graph
+from graph import Zone, Connection, Map, Graph
 
 
 @pytest.fixture

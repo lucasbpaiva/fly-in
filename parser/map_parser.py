@@ -1,7 +1,7 @@
 from typing import Any
 from pathlib import Path
 from pydantic import ValidationError
-from graph_engine import Zone, Connection, Map
+from graph import Zone, Connection, Map
 from schemas import ZoneSchema, ConnectionSchema
 
 
