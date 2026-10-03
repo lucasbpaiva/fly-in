@@ -46,15 +46,15 @@ class TestSimulationEngine:
 
         assert engine.turn == 0
         assert engine.is_finished is False
-        assert len(engine.active_drones) == 2
+        assert len(engine.drones) == 2
 
         # All drones must spawn in the start zone
         assert "D1" in linear_graph.start_zone.occupants
         assert "D2" in linear_graph.start_zone.occupants
 
         # Drone location tracking should reflect the start zone
-        assert engine.drone_locations["D1"] == linear_graph.start_zone
-        assert engine.drone_locations["D2"] == linear_graph.start_zone
+        assert engine.drones["D1"].location == linear_graph.start_zone
+        assert engine.drones["D2"].location == linear_graph.start_zone
 
     def test_valid_movement_execution(self, linear_graph: Graph) -> None:
         """Verify the engine correctly moves a drone and updates capacities."""
@@ -62,12 +62,12 @@ class TestSimulationEngine:
         target_node = linear_graph.zones["hub_a"]
 
         # Engine attempts to move D1 to hub_a
-        success = engine.attempt_move(drone_id="D1", target_node=target_node)
+        success = engine.attempt_move(drone_id="D1", target=target_node)
 
         assert success is True
         assert "D1" in target_node.occupants
         assert "D1" not in linear_graph.start_zone.occupants
-        assert engine.drone_locations["D1"] == target_node
+        assert engine.drones["D1"].location == target_node
 
     def test_capacity_rejection(self, linear_graph: Graph) -> None:
         """Verify engine blocks movement if the target node is at capacity."""
@@ -75,41 +75,38 @@ class TestSimulationEngine:
         target_node = linear_graph.zones["hub_a"]
 
         # Move D1 into hub_a (capacity = 1)
-        engine.attempt_move(drone_id="D1", target_node=target_node)
+        engine.attempt_move(drone_id="D1", target=target_node)
         assert target_node.is_full is True
 
         # Attempt to move D2 into the full hub_a
-        success = engine.attempt_move(drone_id="D2", target_node=target_node)
+        success = engine.attempt_move(drone_id="D2", target=target_node)
 
         assert success is False
         assert "D2" not in target_node.occupants
         assert "D2" in linear_graph.start_zone.occupants  # D2 stays behind
 
-    def test_tick_output_generation(self, linear_graph: Graph) -> None:
+    def test_turn_output_generation(self, linear_graph: Graph) -> None:
         """Verify the standard output string has format D<ID>-<zone>."""
         engine = SimulationEngine(graph=linear_graph)
         target_node = linear_graph.zones["hub_a"]
 
-        # Execute a tick where only D1 moves
+        # Execute a turn where only D1 moves
         moves = {"D1": target_node}  # Planned moves dictionary
-        output = engine.tick(moves)
+        output = engine.play_turn(moves)
 
         # Output should only contain drones that successfully moved this turn
-        assert output == "D1-hub_a"
+        assert len(output) == 1 and output[0] == "D1-hub_a"
         assert engine.turn == 1
 
     def test_simulation_completion(self, linear_graph: Graph) -> None:
-        """Verify drones reaching the end_zone are removed from active list."""
+        """Verify drones reaching the end_zone are marked as finished."""
         engine = SimulationEngine(graph=linear_graph)
-
         # Teleport D1 and D2 to the end zone for the test
-        engine.attempt_move("D1", linear_graph.end_zone)
-        engine.attempt_move("D2", linear_graph.end_zone)
-
+        engine.drones["D1"].location = linear_graph.end_zone
+        engine.drones["D2"].location = linear_graph.end_zone
         # Call the cleanup/completion check method
         engine.check_completions()
-
-        assert "D1" not in engine.active_drones
-        assert "D2" not in engine.active_drones
-        assert "D1" in engine.finished_drones
+        assert engine.drones["D1"].is_finished is True
+        assert engine.drones["D2"].is_finished is True
+        assert len(engine.active_drones) == 0
         assert engine.is_finished is True
