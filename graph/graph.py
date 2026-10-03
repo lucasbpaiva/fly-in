@@ -22,6 +22,9 @@ class Graph:
         self.end_zone: Zone = parsed_map.end_zone
         self.zones: dict[str, Zone] = parsed_map.zones
         self.edges: list[Connection] = parsed_map.connections
+        self.connections: dict[tuple[str, str], Connection] = {
+            (conn.zone1, conn.zone2): conn for conn in self.edges
+        }
         self.adj_list: dict[str, set[Zone]] = self._build_adj_list(self.edges)
 
     def _build_adj_list(self, edges: list[Connection]) -> dict[str, set[Zone]]:
@@ -51,3 +54,10 @@ class Graph:
             does not exist or has no connections.
         """
         return self.adj_list.get(zone_name, set())
+
+    def get_connection(self, zone1: str, zone2: str) -> Connection | None:
+        """Retrieve the Connection object linking two zones."""
+        return (
+            self.connections.get((zone1, zone2))
+            or self.connections.get((zone2, zone1))
+        )
