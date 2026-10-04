@@ -95,7 +95,7 @@ class TestSimulationEngine:
         output = engine.play_turn(moves)
 
         # Output should only contain drones that successfully moved this turn
-        assert len(output) == 1 and output[0] == "D1-hub_a"
+        assert output == "D1-hub_a"
         assert engine.turn == 1
 
     def test_simulation_completion(self, linear_graph: Graph) -> None:
