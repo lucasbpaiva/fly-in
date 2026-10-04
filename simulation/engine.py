@@ -33,9 +33,7 @@ class SimulationEngine:
         """Evaluate if every drone in the simulation has reached end zone."""
         return all(drone.is_finished for drone in self.drones.values())
 
-    def play_turn(
-        self, planned_moves: dict[str, Zone | Connection]
-    ) -> list[str]:
+    def play_turn(self, planned_moves: dict[str, Zone | Connection]) -> str:
         """Execute one simulation turn, making all requested drone movements.
 
         Args:
@@ -53,7 +51,7 @@ class SimulationEngine:
                 successful_moves.append(f"{drone_id}-{target.name}")
         self.turn += 1
         self.check_completions()
-        return successful_moves
+        return " ".join(successful_moves)
 
     def attempt_move(self, drone_id: str, target: Zone | Connection) -> bool:
         """Process a single drone's movement subject to physical capacities.
