@@ -1,7 +1,8 @@
 import sys
 import argparse
-from parser import MapParser, ParsingError
 from graph import Graph
+from simulation import SimulationEngine, Pathfinder
+from parser import MapParser, ParsingError
 
 
 def parse_argv() -> argparse.Namespace:
@@ -35,12 +36,26 @@ def main() -> None:
     try:
         args = parse_argv()
         parsed_map = MapParser(args.map_file).parse()
-        Graph(parsed_map)
-        # Always print the required D<ID>-<zone> format to the terminal
-        # Toggle visualization based on the flag
-        if args.visualize:
-            # Initialize pygame and render simulation
-            pass
+        graph = Graph(parsed_map)
+        engine = SimulationEngine(graph)
+        pathfinder = Pathfinder(engine)
+        pathfinder.precompute_routes()
+        while not engine.is_finished:
+            requested_moves = pathfinder.get_next_moves()
+            successful_moves = engine.play_turn(requested_moves)
+            if requested_moves and not successful_moves:
+                if not pathfinder.recalculate_routes():
+                    print("Error: Unresolvable gridlock")
+                    sys.exit(1)
+                continue
+            pathfinder.resolve_completed_moves(successful_moves)
+            if successful_moves:
+                print(" ".join(successful_moves))
+            if args.visualize:
+                for drone in engine.drones.values():
+                    # Access the physical node object
+                    # to get exact coordinates for the sprite
+                    pass
     except (ParsingError, FileNotFoundError, PermissionError, IOError) as e:
         print(f"Error: {e}")
         sys.exit(1)
