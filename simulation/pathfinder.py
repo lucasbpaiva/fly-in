@@ -20,18 +20,18 @@ class Pathfinder:
         """
         self.engine = engine
 
-    def calculate_astar(
-        self, start_node: Zone | Connection, target_node: Zone | Connection
-    ) -> deque[Zone | Connection]:
+    def calculate_a_star(
+        self, start_node: Zone, target_node: Zone
+    ) -> list[Zone | Connection]:
         """
         """
-        return deque()
+        return []
 
     def precompute_routes(self) -> None:
         """Run A* to generate the full path for every drone at turn 0."""
         for drone in self.engine.active_drones:
             # Placeholder for your actual A* algorithm
-            # e.g., drone.planned_path = self.calculate_astar(...)
+            # e.g., drone.planned_path = self.calculate_a_star(...)
             pass
 
     def recalculate_routes(self) -> bool:
@@ -41,14 +41,14 @@ class Pathfinder:
             drone.planned_path.clear()
         # Rerun your A* algorithm from their CURRENT locations
         for drone in self.engine.active_drones:
-            new_path = self.calculate_astar(
+            new_path = self.calculate_a_star(
                 start_node=drone.location,
                 target_node=self.engine.graph.end_zone,
                 # pass current board state to A* so it routes around blockages
             )
             if not new_path:
                 return False  # A* couldn't find a way out
-            drone.planned_path = new_path
+            drone.planned_path = deque(new_path)
         return True
 
     def get_next_moves(self) -> dict[str, Zone | Connection]:
