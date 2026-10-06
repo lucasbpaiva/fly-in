@@ -15,7 +15,7 @@ class Drone:
             drone_id: The unique string identifier (e.g., 'D1').
             initial_location: The Zone object where the drone spawns.
         """
-        self.id = drone_id
-        self.location = initial_location
-        self.is_finished = False
+        self.id: str = drone_id
+        self.location: Zone | Connection = initial_location
+        self.is_finished: bool = False
         self.planned_path: deque[Zone | Connection] = deque()
