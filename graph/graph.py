@@ -1,3 +1,4 @@
+import math
 from .zone import Zone
 from .map_dto import Map
 from .connection import Connection
@@ -26,6 +27,7 @@ class Graph:
             (conn.zone1, conn.zone2): conn for conn in self.edges
         }
         self.adj_list: dict[str, set[Zone]] = self._build_adj_list(self.edges)
+        self.max_edge_length = self._calculate_max_edge_length()
 
     def _build_adj_list(self, edges: list[Connection]) -> dict[str, set[Zone]]:
         """Construct bidirectional adjacency mapping for O(1) neighbor lookups.
@@ -43,17 +45,38 @@ class Graph:
             adj[edge.zone2].add(self.zones[edge.zone1])
         return adj
 
-    def get_neighbors(self, zone_name: str) -> set[Zone]:
-        """Retrieve all zones immediately adjacent to the specified zone.
+    def get_neighbors(
+        self, node: Zone | Connection
+    ) -> list[Zone | Connection]:
+        """Retrieve all nodes immediately adjacent to the specified zone.
 
         Args:
-            zone_name: The string identifier of the target zone.
+            node: The Zone or Connection from which we want the neighbors.
 
         Returns:
-            A set of adjacent Zone objects, or an empty set if the zone
+            A list of adjacent Zone/Connection, or an empty list if the zone
             does not exist or has no connections.
         """
-        return self.adj_list.get(zone_name, set())
+        neighbors: list[Zone | Connection] = []
+        if isinstance(node, Connection):
+            neighbors.append(self.zones[node.zone1])
+            neighbors.append(self.zones[node.zone2])
+            return neighbors
+        for adj_zone in self.adj_list.get(node.name, set()):
+            zone_type = getattr(adj_zone, "type", "normal").lower()
+            if zone_type == "blocked":
+                continue
+            # If targeting a restricted zone, it's a multi-turn transit.
+            # A* must step into the physical Connection object first.
+            if zone_type == "restricted":
+                conn = self.get_connection(node.name, adj_zone.name)
+                if not conn:
+                    continue
+                neighbors.append(conn)
+            else:
+                # If priority or normal, it's a 1-turn jump to the Zone.
+                neighbors.append(adj_zone)
+        return neighbors
 
     def get_connection(self, zone1: str, zone2: str) -> Connection | None:
         """Retrieve the Connection object linking two zones."""
@@ -61,3 +84,25 @@ class Graph:
             self.connections.get((zone1, zone2))
             or self.connections.get((zone2, zone1))
         )
+
+    def get_coords(self, node: Zone | Connection) -> tuple[float, float]:
+        """Extract spatial coordinates safely for Zones and Connections."""
+        if isinstance(node, Zone):
+            return node.x, node.y
+        # If the drone is inside a connection, approximate its location
+        # as the exact midpoint between the two connecting zones.
+        z1 = self.zones[node.zone1]
+        z2 = self.zones[node.zone2]
+        return (z1.x + z2.x) / 2.0, (z1.y + z2.y) / 2.0
+
+    def _calculate_max_edge_length(self) -> float:
+        """Find the longest 1-turn jump to normalize the heuristic."""
+        max_dist = 0.0
+        for conn in self.edges:
+            z1 = self.zones[conn.zone1]
+            z2 = self.zones[conn.zone2]
+            dist = math.hypot(z2.x - z1.x, z2.y - z1.y)
+            if dist > max_dist:
+                max_dist = dist
+        # Fallback to 1.0 to prevent division-by-zero on a single-node map
+        return max_dist if max_dist > 0 else 1.0
