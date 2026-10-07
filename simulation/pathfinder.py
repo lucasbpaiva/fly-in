@@ -21,6 +21,20 @@ class Pathfinder:
                 capacities.
         """
         self.engine = engine
+        # Tracks how many drones are in a specific node at a specific turn
+        # Format: {(node_name, turn_number): planned_occupancy_count}
+        self.reservations: dict[tuple[str, int], int] = {}
+
+    def _is_available(self, node: Zone | Connection, turn: int) -> bool:
+        """Check if a node has capacity at a specific future turn."""
+        planned_occupancy = self.reservations.get((node.name, turn), 0)
+        return planned_occupancy < node.capacity
+
+    def _reserve_path(self, path: list[Zone | Connection]) -> None:
+        """Lock in a drone's route to block future A* calculations."""
+        for turn, node in enumerate(path):
+            key = (node.name, turn)
+            self.reservations[key] = self.reservations.get(key, 0) + 1
 
     def _get_step_cost(self, node: Zone | Connection) -> int:
         """Return the traversal weight based on the node's classification."""
@@ -41,10 +55,12 @@ class Pathfinder:
         euclidean_distance = math.hypot(x2 - x1, y2 - y1)
         return euclidean_distance / self.engine.graph.max_edge_length
 
-    def _reconstruct_path(
+    def reconstruct_path(
         self,
-        came_from: dict[Zone | Connection, Zone | Connection],
-        current: Zone | Connection
+        came_from: dict[
+            tuple[Zone | Connection, int], tuple[Zone | Connection, int]
+        ],
+        current: tuple[Zone | Connection, int]
     ) -> list[Zone | Connection]:
         """Reconstruct the cheapest route by tracing the predecessor dict.
 
@@ -55,17 +71,14 @@ class Pathfinder:
         Returns:
             The sequential path from the starting location to the target.
         """
-        cheapest_path = [current]
+        cheapest_path = [current[0]]
         while current in came_from:
             current = came_from[current]
-            cheapest_path.append(current)
-        return cheapest_path[::-1][1:]
+            cheapest_path.append(current[0])
+        return cheapest_path[::-1]
 
-    def calculate_a_star(
-        self,
-        start_node: Zone | Connection,
-        end_node: Zone | Connection,
-        avoid_nodes: set[Zone | Connection] | None = None
+    def cooperative_a_star(
+        self, start_node: Zone | Connection, end_node: Zone | Connection
     ) -> list[Zone | Connection]:
         """Calculate the optimal path between two nodes using the A* algorithm.
 
@@ -85,56 +98,72 @@ class Pathfinder:
             start to finish. Returns an empty list if no valid route exists
             (e.g., a disconnected graph or total gridlock).
         """
-        avoid_nodes = avoid_nodes or set()
-        open_set: list[tuple[float, int, Zone | Connection]] = []
-        # Priority queue stores tuples of (f_score, unique_id, Node)
-        # We use id(node) as a tie-breaker if two f_scores are identical
-        heapq.heappush(open_set, (0, id(start_node), start_node))
-        g_scores = {start_node: 0}
-        came_from: dict[Zone | Connection, Zone | Connection] = {}
+        open_set: list[tuple[float, int, Zone | Connection, int]] = []
+        # Queue format: (f_score, tiebreaker, node, turn)
+        heapq.heappush(open_set, (0, id(start_node), start_node, 0))
+        g_scores = {(start_node, 0): 0}
+        came_from: dict[
+            tuple[Zone | Connection, int], tuple[Zone | Connection, int]
+        ] = {}
         while open_set:
-            curr = heapq.heappop(open_set)[2]
-            if curr == end_node:
-                return self._reconstruct_path(came_from, curr)
-            for neighbor in self.engine.graph.get_neighbors(curr):
-                if neighbor in avoid_nodes:
+            _, _, curr_node, curr_turn = heapq.heappop(open_set)
+            if curr_node == end_node:
+                return self.reconstruct_path(came_from, (curr_node, curr_turn))
+            neighbors = self.engine.graph.get_neighbors(curr_node)
+            neighbors.append(curr_node)  # "Wait" action
+            for neighbor in neighbors:
+                is_waiting = (neighbor == curr_node)
+                next_turn = curr_turn + 1
+                if is_waiting and isinstance(curr_node, Connection):
                     continue
-                candidate_g = g_scores[curr] + self._get_step_cost(neighbor)
-                if candidate_g < g_scores.get(neighbor, float('inf')):
-                    came_from[neighbor] = curr
-                    g_scores[neighbor] = candidate_g
+                if not self._is_available(neighbor, next_turn):
+                    continue
+                step_cost = 2 if is_waiting else self._get_step_cost(neighbor)
+                candidate_g = g_scores[(curr_node, curr_turn)] + step_cost
+                next_state = (neighbor, next_turn)
+                if candidate_g < g_scores.get(next_state, float('inf')):
+                    came_from[next_state] = (curr_node, curr_turn)
+                    g_scores[next_state] = candidate_g
                     h_score = self._heuristic(neighbor, end_node)
                     f_score = candidate_g + h_score
-                    heapq.heappush(open_set, (f_score, id(neighbor), neighbor))
+                    entry = (f_score, id(neighbor), neighbor, next_turn)
+                    heapq.heappush(open_set, entry)
         return []  # Unsolvable
 
     def precompute_routes(self) -> None:
-        """Run A* to generate the full path for every drone at turn 0."""
-        for drone in self.engine.active_drones:
-            start_node = self.engine.graph.start_zone
-            end_node = self.engine.graph.end_zone
-            initial_path = self.calculate_a_star(start_node, end_node)
-            drone.planned_path = deque(initial_path)
+        """Route drones sequentially so they respect each other's schedules."""
+        self.reservations.clear()
+        drones = sorted(self.engine.active_drones, key=lambda d: d.id)
+        start_node = self.engine.graph.start_zone
+        end_node = self.engine.graph.end_zone
+        for drone in drones:
+            path = self.cooperative_a_star(start_node, end_node)
+            if path:
+                self._reserve_path(path)
+                drone.planned_path = deque(path[1:])
+            else:
+                print(f"Warning: No valid path found for {drone.id}")
 
     def recalculate_routes(self) -> bool:
-        """Attempt to resolve a deadlock by routing around stalled drones."""
-        # Clear existing queues for active drones
+        """Attempt to resolve a deadlock using Cooperative A* from mid-map."""
+        self.reservations.clear()
         for drone in self.engine.active_drones:
             drone.planned_path.clear()
-        # Rerun your A* algorithm from their CURRENT locations
-        for drone in self.engine.active_drones:
-            obstacles = set(
-                other.location for other in self.engine.active_drones
-                if other.id != drone.id
-            )
-            new_path = self.calculate_a_star(
-                start_node=drone.location,
-                end_node=self.engine.graph.end_zone,
-                avoid_nodes=obstacles
-            )
-            if not new_path:
-                return False  # A* couldn't find a way out
-            drone.planned_path = deque(new_path)
+            for future_turn in range(0, 100):  # 100 is an arbitrary turn limit
+                node_key = (drone.location.name, future_turn)
+                curr_occupancy = self.reservations.get(node_key, 0)
+                self.reservations[node_key] = curr_occupancy + 1
+        drones = sorted(self.engine.active_drones, key=lambda d: d.id)
+        end_zone = self.engine.graph.end_zone
+        for drone in drones:
+            for future_turn in range(0, 100):
+                node_key = (drone.location.name, future_turn)
+                self.reservations[node_key] -= 1
+            path = self.cooperative_a_star(drone.location, end_zone)
+            if not path:
+                return False
+            self._reserve_path(path)
+            drone.planned_path = deque(path[1:])
         return True
 
     def get_next_moves(self) -> dict[str, Zone | Connection]:
@@ -143,7 +172,10 @@ class Pathfinder:
         for drone in self.engine.active_drones:
             if drone.planned_path:
                 next_node = drone.planned_path[0]
-                planned_moves[drone.id] = next_node
+                if next_node == drone.location:
+                    drone.planned_path.popleft()
+                else:
+                    planned_moves[drone.id] = next_node
         return planned_moves
 
     def resolve_completed_moves(self, successful_moves: list[str]) -> None:
