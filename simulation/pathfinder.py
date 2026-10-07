@@ -21,9 +21,15 @@ class Pathfinder:
                 capacities.
         """
         self.engine = engine
+        self.graph = self.engine.graph
         # Tracks how many drones are in a specific node at a specific turn
         # Format: {(node_name, turn_number): planned_occupancy_count}
         self.reservations: dict[tuple[str, int], int] = {}
+
+    def _increment_reservations(self, node_name: str, turn: int) -> None:
+        """Increment the reservations dict by 1 for (node_name, turn) key."""
+        key = (node_name, turn)
+        self.reservations[key] = self.reservations.get(key, 0) + 1
 
     def _is_available(self, node: Zone | Connection, turn: int) -> bool:
         """Check if a node has capacity at a specific future turn."""
@@ -33,8 +39,14 @@ class Pathfinder:
     def _reserve_path(self, path: list[Zone | Connection]) -> None:
         """Lock in a drone's route to block future A* calculations."""
         for turn, node in enumerate(path):
-            key = (node.name, turn)
-            self.reservations[key] = self.reservations.get(key, 0) + 1
+            self._increment_reservations(node.name, turn)
+            if turn > 0:
+                prev = path[turn - 1]
+                both_zones = isinstance(prev, Zone) and isinstance(node, Zone)
+                if both_zones and prev != node:
+                    conn = self.graph.get_connection(prev.name, node.name)
+                    if conn:
+                        self._increment_reservations(conn.name, turn)
 
     def _get_step_cost(self, node: Zone | Connection) -> int:
         """Return the traversal weight based on the node's classification."""
@@ -50,10 +62,10 @@ class Pathfinder:
         self, current_node: Zone | Connection, target_node: Zone | Connection
     ) -> float:
         """Calculate the admissible minimum turn cost to the target node."""
-        x1, y1 = self.engine.graph.get_coords(current_node)
-        x2, y2 = self.engine.graph.get_coords(target_node)
+        x1, y1 = self.graph.get_coords(current_node)
+        x2, y2 = self.graph.get_coords(target_node)
         euclidean_distance = math.hypot(x2 - x1, y2 - y1)
-        return euclidean_distance / self.engine.graph.max_edge_length
+        return euclidean_distance / self.graph.max_edge_length
 
     def reconstruct_path(
         self,
@@ -106,23 +118,31 @@ class Pathfinder:
             tuple[Zone | Connection, int], tuple[Zone | Connection, int]
         ] = {}
         while open_set:
-            _, _, curr_node, curr_turn = heapq.heappop(open_set)
-            if curr_node == end_node:
-                return self.reconstruct_path(came_from, (curr_node, curr_turn))
-            neighbors = self.engine.graph.get_neighbors(curr_node)
-            neighbors.append(curr_node)  # "Wait" action
+            _, _, curr, curr_turn = heapq.heappop(open_set)
+            if curr == end_node:
+                return self.reconstruct_path(came_from, (curr, curr_turn))
+            neighbors = self.graph.get_neighbors(curr)
+            neighbors.append(curr)  # "Wait" action
             for neighbor in neighbors:
-                is_waiting = (neighbor == curr_node)
+                is_waiting = (neighbor == curr)
                 next_turn = curr_turn + 1
-                if is_waiting and isinstance(curr_node, Connection):
+                if is_waiting and isinstance(curr, Connection):
                     continue
                 if not self._is_available(neighbor, next_turn):
                     continue
+                if (
+                    not is_waiting
+                    and isinstance(curr, Zone)
+                    and isinstance(neighbor, Zone)
+                ):
+                    conn = self.graph.get_connection(curr.name, neighbor.name)
+                    if conn and not self._is_available(conn, next_turn):
+                        continue
                 step_cost = 2 if is_waiting else self._get_step_cost(neighbor)
-                candidate_g = g_scores[(curr_node, curr_turn)] + step_cost
+                candidate_g = g_scores[(curr, curr_turn)] + step_cost
                 next_state = (neighbor, next_turn)
                 if candidate_g < g_scores.get(next_state, float('inf')):
-                    came_from[next_state] = (curr_node, curr_turn)
+                    came_from[next_state] = (curr, curr_turn)
                     g_scores[next_state] = candidate_g
                     h_score = self._heuristic(neighbor, end_node)
                     f_score = candidate_g + h_score
@@ -134,8 +154,8 @@ class Pathfinder:
         """Route drones sequentially so they respect each other's schedules."""
         self.reservations.clear()
         drones = sorted(self.engine.active_drones, key=lambda d: d.id)
-        start_node = self.engine.graph.start_zone
-        end_node = self.engine.graph.end_zone
+        start_node = self.graph.start_zone
+        end_node = self.graph.end_zone
         for drone in drones:
             path = self.cooperative_a_star(start_node, end_node)
             if path:
@@ -150,11 +170,9 @@ class Pathfinder:
         for drone in self.engine.active_drones:
             drone.planned_path.clear()
             for future_turn in range(0, 100):  # 100 is an arbitrary turn limit
-                node_key = (drone.location.name, future_turn)
-                curr_occupancy = self.reservations.get(node_key, 0)
-                self.reservations[node_key] = curr_occupancy + 1
+                self._increment_reservations(drone.location.name, future_turn)
         drones = sorted(self.engine.active_drones, key=lambda d: d.id)
-        end_zone = self.engine.graph.end_zone
+        end_zone = self.graph.end_zone
         for drone in drones:
             for future_turn in range(0, 100):
                 node_key = (drone.location.name, future_turn)
