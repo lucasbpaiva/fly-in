@@ -26,7 +26,8 @@ class SimulationEngine:
     @property
     def active_drones(self) -> list[Drone]:
         """Dynamically filter the registry for drones currently in transit."""
-        return [d for d in self.drones.values() if not d.is_finished]
+        drones = [d for d in self.drones.values() if not d.is_finished]
+        return sorted(drones, key=lambda d: int(d.id.replace("D", "")))
 
     @property
     def is_finished(self) -> bool:
