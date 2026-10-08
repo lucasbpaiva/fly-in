@@ -4,6 +4,95 @@ from graph import Graph
 from simulation import SimulationEngine, Pathfinder
 from parser import MapParser, ParsingError
 
+ANSI_COLORS = {
+    "red": "\033[91m",
+    "green": "\033[92m",
+    "blue": "\033[94m",
+    "yellow": "\033[93m",
+    "cyan": "\033[96m",
+    "orange": "\033[38;5;214m",
+    "purple": "\033[38;5;129m",
+    "brown": "\033[38;5;130m",
+    "lime": "\033[38;5;118m",
+    "magenta": "\033[35m",
+    "gold": "\033[38;5;220m",
+    "black": "\033[30m",
+    "maroon": "\033[38;5;52m",
+    "darkred": "\033[38;5;88m",
+    "violet": "\033[38;5;135m",
+    "crimson": "\033[38;5;161m",
+    "rainbow": "",
+    "reset": "\033[0m",
+}
+
+RAINBOW_COLORS = [
+    "\033[91m",        # Red
+    "\033[38;5;214m",  # Orange
+    "\033[93m",        # Yellow
+    "\033[92m",        # Green
+    "\033[94m",        # Blue
+    "\033[38;5;57m",   # Indigo
+    "\033[38;5;135m"   # Violet
+]
+
+
+def apply_rainbow(text: str) -> str:
+    """Applies a repeating ANSI color sequence to each character in a string.
+
+    Iterates through the provided text and wraps each character in a color
+    code from the RAINBOW_COLORS list, cycling back to the beginning of the
+    list if the text length exceeds the number of available colors. Appends
+    an ANSI reset code at the end to prevent color bleeding in the terminal.
+
+    Args:
+        text (str): The raw string to be colorized (e.g., a zone name).
+
+    Returns:
+        str: The fully formatted string containing interleaved ANSI color
+            codes and characters, terminating with a color reset code.
+    """
+    colored_chars = []
+    for i, char in enumerate(text):
+        color = RAINBOW_COLORS[i % len(RAINBOW_COLORS)]
+        colored_chars.append(f"{color}{char}")
+    reset = ANSI_COLORS.get("reset", "\033[0m")
+    return "".join(colored_chars) + reset
+
+
+def print_output(moves: list[str], graph: Graph) -> None:
+    """Prints the successful drone moves to the terminal with ANSI colors.
+
+    Processes a list of move strings by parsing the individual node names
+    and looking up their color attributes in the graph. Wraps each node in
+    the corresponding ANSI escape code before printing. Supports standard
+    colors and a character-by-character "rainbow" effect.
+
+    Args:
+        moves: A list of executed move strings for the current turn
+            (e.g., ["D1-gate1", "D2-waiting_area-goal"]).
+        graph: The simulation graph containing the defined zones and
+            their metadata, used for color lookups.
+    """
+    colored_output = []
+    for move in moves:
+        parts = move.split("-")
+        # parts[0] is the Drone ID (e.g., "D1"), leave it uncolored
+        colored_parts = [parts[0]]
+        for node in parts[1:]:
+            zone = graph.zones.get(node)
+            if zone and zone.color is not None:
+                color_name = zone.color.lower()
+                if color_name == "rainbow":
+                    colored_parts.append(apply_rainbow(node))
+                else:
+                    color_code = ANSI_COLORS.get(color_name, "")
+                    reset_code = ANSI_COLORS["reset"] if color_code else ""
+                    colored_parts.append(f"{color_code}{node}{reset_code}")
+            else:
+                colored_parts.append(node)
+        colored_output.append("-".join(colored_parts))
+    print(" ".join(colored_output))
+
 
 def parse_argv() -> argparse.Namespace:
     """Parse command-line arguments for the drone routing simulation.
@@ -50,7 +139,7 @@ def main() -> None:
                 continue
             pathfinder.resolve_completed_moves(successful_moves)
             if successful_moves:
-                print(" ".join(successful_moves))
+                print_output(successful_moves, graph)
             if args.visualize:
                 for drone in engine.drones.values():
                     # Access the physical node object
