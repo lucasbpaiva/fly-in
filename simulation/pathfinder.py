@@ -110,15 +110,15 @@ class Pathfinder:
             start to finish. Returns an empty list if no valid route exists
             (e.g., a disconnected graph or total gridlock).
         """
-        open_set: list[tuple[float, int, Zone | Connection, int]] = []
-        # Queue format: (f_score, tiebreaker, node, turn)
-        heapq.heappush(open_set, (0, id(start_node), start_node, 0))
+        # Queue format: (f_time, f_preference, tiebreaker, node, turn)
+        open_set: list[tuple[float, int, int, Zone | Connection, int]] = []
+        heapq.heappush(open_set, (0, 0, id(start_node), start_node, 0))
         g_scores = {(start_node, 0): 0}
         came_from: dict[
             tuple[Zone | Connection, int], tuple[Zone | Connection, int]
         ] = {}
         while open_set:
-            _, _, curr, curr_turn = heapq.heappop(open_set)
+            _, _, _, curr, curr_turn = heapq.heappop(open_set)
             if curr == end_node:
                 return self.reconstruct_path(came_from, (curr, curr_turn))
             neighbors = self.graph.get_neighbors(curr)
@@ -138,22 +138,24 @@ class Pathfinder:
                     conn = self.graph.get_connection(curr.name, neighbor.name)
                     if conn and not self._is_available(conn, next_turn):
                         continue
-                step_cost = 2 if is_waiting else self._get_step_cost(neighbor)
-                candidate_g = g_scores[(curr, curr_turn)] + step_cost
+                step_cost = 1 if is_waiting else self._get_step_cost(neighbor)
+                g_score = g_scores[(curr, curr_turn)] + step_cost
                 next_state = (neighbor, next_turn)
-                if candidate_g < g_scores.get(next_state, float('inf')):
+                if g_score < g_scores.get(next_state, float('inf')):
                     came_from[next_state] = (curr, curr_turn)
-                    g_scores[next_state] = candidate_g
-                    h_score = self._heuristic(neighbor, end_node)
-                    f_score = candidate_g + h_score
-                    entry = (f_score, id(neighbor), neighbor, next_turn)
+                    g_scores[next_state] = g_score
+                    h_score = int(self._heuristic(neighbor, end_node))
+                    f_score = next_turn + h_score
+                    entry = (
+                        f_score, g_score, id(neighbor), neighbor, next_turn
+                    )
                     heapq.heappush(open_set, entry)
         return []  # Unsolvable
 
     def precompute_routes(self) -> None:
         """Route drones sequentially so they respect each other's schedules."""
         self.reservations.clear()
-        drones = sorted(self.engine.active_drones, key=lambda d: d.id)
+        drones = self.engine.active_drones
         start_node = self.graph.start_zone
         end_node = self.graph.end_zone
         for drone in drones:
@@ -167,11 +169,11 @@ class Pathfinder:
     def recalculate_routes(self) -> bool:
         """Attempt to resolve a deadlock using Cooperative A* from mid-map."""
         self.reservations.clear()
-        for drone in self.engine.active_drones:
+        drones = self.engine.active_drones
+        for drone in drones:
             drone.planned_path.clear()
             for future_turn in range(0, 100):  # 100 is an arbitrary turn limit
                 self._increment_reservations(drone.location.name, future_turn)
-        drones = sorted(self.engine.active_drones, key=lambda d: d.id)
         end_zone = self.graph.end_zone
         for drone in drones:
             for future_turn in range(0, 100):
