@@ -1,8 +1,9 @@
 import sys
 import argparse
 from graph import Graph
-from simulation import SimulationEngine, Pathfinder
+from visualizer import Visualizer
 from parser import MapParser, ParsingError
+from simulation import SimulationEngine, Pathfinder
 
 ANSI_COLORS = {
     "red": "\033[91m",
@@ -140,11 +141,13 @@ def main() -> None:
             pathfinder.resolve_completed_moves(successful_moves)
             if successful_moves:
                 print_output(successful_moves, graph)
-            if args.visualize:
-                for drone in engine.drones.values():
-                    # Access the physical node object
-                    # to get exact coordinates for the sprite
-                    pass
+        if args.visualize:
+            visualizer = Visualizer(graph)
+            visualizer.render()
+            for drone in engine.drones.values():
+                # Access the physical node object
+                # to get exact coordinates for the sprite
+                pass
     except (ParsingError, FileNotFoundError, PermissionError, IOError) as e:
         print(f"Error: {e}")
         sys.exit(1)
