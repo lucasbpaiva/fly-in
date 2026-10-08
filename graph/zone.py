@@ -35,6 +35,7 @@ class Zone:
         self.y: int = zone.y
         self.type: ZoneType = zone.metadata.zone
         self.capacity: int = zone.metadata.max_drones
+        self.color: str | None = zone.metadata.color
         self.is_start: bool = is_start
         self.is_end: bool = is_end
         if self.is_start or self.is_end:
