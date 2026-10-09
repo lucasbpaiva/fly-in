@@ -16,7 +16,7 @@ $(VENV)/bin/activate: requirements.txt
 install: $(VENV)/bin/activate
 
 run: $(VENV)/bin/activate
-	@$(PYTHON) main.py $(MAP) $(ARGS)
+	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py $(MAP) $(ARGS)
 
 debug: install
 	@$(PYTHON) -m pdb main.py $(MAP)
