@@ -26,6 +26,7 @@ class Visualizer:
         self.graph = graph
         self.width = width
         self.height = height
+        self.zones = self.graph.zones.values()
         (  # Calculate these once during initialization
             self.scale_x, self.scale_y, self.offset_x, self.offset_y
         ) = self._calculate_scale_factors()
@@ -37,7 +38,7 @@ class Visualizer:
         max_x = float('-inf')
         min_y = float('inf')
         max_y = float('-inf')
-        for zone in self.graph.zones.values():
+        for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             if x < min_x:
                 min_x = x
@@ -88,8 +89,23 @@ class Visualizer:
                 )
 
     def _draw_zones(self) -> None:
-        # Implementation using pygame.draw.circle
-        pass
+        """Draws circles representing the zones over the connections."""
+        radius = 12
+        outline = 2
+        for zone in self.zones:
+            x, y = self.graph.get_coords(zone)
+            screen_pos = self._transform_coords(x, y)
+            color_name = zone.color
+            default_color = self.COLORS["default"]
+            if color_name is None:
+                rgb_color = default_color
+            elif color_name.lower() == "rainbow":
+                rgb_color = (255, 255, 255)
+            else:
+                rgb_color = self.COLORS.get(color_name.lower(), default_color)
+            pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
+            white = (255, 255, 255)
+            pygame.draw.circle(self.screen, white, screen_pos, radius, outline)
 
     def render(self) -> None:
         """
