@@ -114,6 +114,9 @@ class Visualizer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
+                        self.running = False
             self.screen.fill(color=(30, 30, 30))
             self._draw_connections()
             self._draw_zones()
