@@ -6,13 +6,23 @@ class Visualizer:
     """
     """
     COLORS = {
-        "green": (46, 204, 113),
-        "orange": (230, 126, 34),
-        "blue": (52, 152, 219),
-        "red": (231, 76, 60),
+        "green": (0, 128, 0),
+        "orange": (255, 165, 0),
+        "blue": (0, 0, 255),
+        "red": (255, 0, 0),
         "cyan": (0, 255, 255),
-        "yellow": (241, 196, 15),
-        "default": (149, 165, 166)
+        "yellow": (255, 255, 0),
+        "purple": (128, 0, 128),
+        "brown": (165, 42, 42),
+        "lime": (0, 255, 0),
+        "magenta": (255, 0, 255),
+        "gold": (255, 215, 0),
+        "black": (0, 0, 0),
+        "maroon": (128, 0, 0),
+        "darkred": (139, 0, 0),
+        "violet": (238, 130, 238),
+        "crimson": (220, 20, 60),
+        "default": (149, 165, 166),
     }
 
     def __init__(self, graph: Graph, width: int = 800, height: int = 600):
