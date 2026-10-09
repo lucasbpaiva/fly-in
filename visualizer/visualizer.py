@@ -40,6 +40,10 @@ class Visualizer:
         self.width = width
         self.height = height
         self.zones = self.graph.zones.values()
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self.zoom = 1.0
+        self.is_panning = False
         (  # Calculate these once during initialization
             self.scale_x, self.scale_y,
             self.offset_x, self.offset_y,
@@ -82,12 +86,32 @@ class Visualizer:
         screen_center_y = self.height / 2
         offset_x = screen_center_x - (logical_center_x * scale)
         offset_y = screen_center_y - (logical_center_y * scale)
+        if graph_width > 10:
+            self.zoom = graph_width / 10.0
+            start_x, start_y = self.graph.get_coords(self.graph.start_zone)
+            base_sx = start_x * scale + offset_x
+            base_sy = start_y * scale + offset_y
+            target_x = self.width * 0.1
+            target_y = self.height / 2
+            self.pan_x = target_x - (
+                (base_sx - screen_center_x) * self.zoom + screen_center_x
+            )
+            self.pan_y = target_y - (
+                (base_sy - screen_center_y) * self.zoom + screen_center_y
+            )
+        else:
+            self.zoom = 1.0
+            self.pan_x = 0.0
+            self.pan_y = 0.0
         return scale, scale, offset_x, offset_y, base_radius
 
     def _transform_coords(self, x: float, y: float) -> tuple[int, int]:
         """Converts logical grid coordinates to physical pixel coordinates."""
-        screen_x = int(x * self.scale_x + self.offset_x)
-        screen_y = int(y * self.scale_y + self.offset_y)
+        base_x = int(x * self.scale_x + self.offset_x)
+        base_y = int(y * self.scale_y + self.offset_y)
+        cx, cy = self.width / 2, self.height / 2
+        screen_x = int((base_x - cx) * self.zoom + cx + self.pan_x)
+        screen_y = int((base_y - cy) * self.zoom + cy + self.pan_y)
         return screen_x, screen_y
 
     def _draw_connections(self) -> None:
@@ -118,7 +142,7 @@ class Visualizer:
             self.COLORS["indigo"],
             self.COLORS["violet"],
         ]
-        radius = float(self.base_radius)
+        radius = float(max(5, int(self.base_radius * self.zoom)))
         step = radius / len(rainbow_colors)
         for color in rainbow_colors:
             pygame.draw.circle(self.screen, color, screen_pos, int(radius))
@@ -126,7 +150,7 @@ class Visualizer:
 
     def _draw_zones(self) -> None:
         """Draws circles representing the zones over the connections."""
-        radius = self.base_radius
+        radius = max(5, int(self.base_radius * self.zoom))
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
@@ -159,6 +183,31 @@ class Visualizer:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
                         self.running = False
+                # --- CAMERA CONTROLS ---
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:  # Left click
+                        self.is_panning = True
+                        pygame.mouse.get_rel()  # Flush old relative movement
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        self.is_panning = False
+                elif event.type == pygame.MOUSEMOTION:
+                    if self.is_panning:
+                        # Add relative mouse movement to pan offset
+                        self.pan_x += event.rel[0]
+                        self.pan_y += event.rel[1]
+                elif event.type == pygame.MOUSEWHEEL:
+                    mx, my = pygame.mouse.get_pos()
+                    cx, cy = self.width / 2, self.height / 2
+                    old_zoom = self.zoom
+                    zoom_factor = 1.15 if event.y > 0 else (1 / 1.15)
+                    self.zoom *= zoom_factor
+                    # Clamp zoom to prevent flipping or freezing
+                    self.zoom = max(0.2, min(self.zoom, 30.0))
+                    # Adjust panning so the zoom centers on the mouse cursor
+                    ratio = self.zoom / old_zoom
+                    self.pan_x = mx - cx - (mx - cx - self.pan_x) * ratio
+                    self.pan_y = my - cy - (my - cy - self.pan_y) * ratio
             self.screen.fill(color=(30, 30, 30))
             self._draw_connections()
             self._draw_zones()
