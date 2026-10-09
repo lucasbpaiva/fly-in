@@ -22,6 +22,7 @@ class Visualizer:
         "darkred": (139, 0, 0),
         "violet": (238, 130, 238),
         "crimson": (220, 20, 60),
+        "indigo": (75, 0, 130),
         "default": (149, 165, 166),
     }
 
@@ -98,24 +99,43 @@ class Visualizer:
                     self.screen, line_color, start_pos, end_pos, line_width
                 )
 
+    def _draw_rainbow_wheel(
+        self, screen_pos: tuple[int, int], total_radius: int
+    ) -> None:
+        """
+        """
+        rainbow_colors = [
+            self.COLORS["red"],
+            self.COLORS["orange"],
+            self.COLORS["yellow"],
+            self.COLORS["green"],
+            self.COLORS["blue"],
+            self.COLORS["indigo"],
+            self.COLORS["violet"],
+        ]
+        for color in rainbow_colors:
+            pygame.draw.circle(self.screen, color, screen_pos, total_radius)
+            total_radius -= 3
+
     def _draw_zones(self) -> None:
         """Draws circles representing the zones over the connections."""
-        radius = 12
+        radius = 21  # min 21 for rainbow wheel
         outline = 2
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
             color_name = zone.color
-            default_color = self.COLORS["default"]
-            if color_name is None:
-                rgb_color = default_color
-            elif color_name.lower() == "rainbow":
-                rgb_color = (255, 255, 255)
-            else:
-                rgb_color = self.COLORS.get(color_name.lower(), default_color)
-            pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
+            default = self.COLORS["default"]
             white = (255, 255, 255)
             pygame.draw.circle(self.screen, white, screen_pos, radius, outline)
+            if color_name is None:
+                pygame.draw.circle(self.screen, default, screen_pos, radius)
+                return
+            if color_name.lower() == "rainbow" and radius >= 21:
+                self._draw_rainbow_wheel(screen_pos, radius)
+                return
+            rgb_color = self.COLORS.get(color_name.lower(), default)
+            pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
 
     def render(self) -> None:
         """
