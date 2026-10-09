@@ -30,7 +30,9 @@ class Visualizer:
         """
         """
         pygame.init()
-        self.screen = pygame.display.set_mode((width, height))
+        self.screen = pygame.display.set_mode(
+            (width, height), pygame.RESIZABLE
+        )
         pygame.display.set_caption("Fly-in")
         self.clock = pygame.time.Clock()
         self.running = True
@@ -120,14 +122,11 @@ class Visualizer:
     def _draw_zones(self) -> None:
         """Draws circles representing the zones over the connections."""
         radius = 21  # min 21 for rainbow wheel
-        outline = 2
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
             color_name = zone.color
             default = self.COLORS["default"]
-            white = (255, 255, 255)
-            pygame.draw.circle(self.screen, white, screen_pos, radius, outline)
             if color_name is None:
                 pygame.draw.circle(self.screen, default, screen_pos, radius)
                 return
@@ -144,6 +143,13 @@ class Visualizer:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                elif event.type == pygame.VIDEORESIZE:
+                    self.width = event.w
+                    self.height = event.h
+                    (
+                        self.scale_x, self.scale_y,
+                        self.offset_x, self.offset_y
+                    ) = self._calculate_scale_factors()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
                         self.running = False
