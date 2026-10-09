@@ -41,12 +41,16 @@ class Visualizer:
         self.height = height
         self.zones = self.graph.zones.values()
         (  # Calculate these once during initialization
-            self.scale_x, self.scale_y, self.offset_x, self.offset_y
+            self.scale_x, self.scale_y,
+            self.offset_x, self.offset_y,
+            self.base_radius
         ) = self._calculate_scale_factors()
 
-    def _calculate_scale_factors(self) -> tuple[float, float, float, float]:
+    def _calculate_scale_factors(
+        self
+    ) -> tuple[float, float, float, float, int]:
         if not self.graph.zones:
-            return 1.0, 1.0, self.width / 2, self.height / 2
+            return 1.0, 1.0, self.width / 2, self.height / 2, 5
         min_x = float('inf')
         max_x = float('-inf')
         min_y = float('inf')
@@ -71,13 +75,14 @@ class Visualizer:
         scale = min(scale_x, scale_y)
         if scale == inf:
             scale = 1.0
+        base_radius = max(5, int(scale * 0.2))
         logical_center_x = min_x + (graph_width / 2)
         logical_center_y = min_y + (graph_height / 2)
         screen_center_x = self.width / 2
         screen_center_y = self.height / 2
         offset_x = screen_center_x - (logical_center_x * scale)
         offset_y = screen_center_y - (logical_center_y * scale)
-        return scale, scale, offset_x, offset_y
+        return scale, scale, offset_x, offset_y, base_radius
 
     def _transform_coords(self, x: float, y: float) -> tuple[int, int]:
         """Converts logical grid coordinates to physical pixel coordinates."""
@@ -101,9 +106,7 @@ class Visualizer:
                     self.screen, line_color, start_pos, end_pos, line_width
                 )
 
-    def _draw_rainbow_wheel(
-        self, screen_pos: tuple[int, int], total_radius: int
-    ) -> None:
+    def _draw_rainbow_wheel(self, screen_pos: tuple[int, int]) -> None:
         """
         """
         rainbow_colors = [
@@ -115,13 +118,15 @@ class Visualizer:
             self.COLORS["indigo"],
             self.COLORS["violet"],
         ]
+        radius = float(self.base_radius)
+        step = radius / len(rainbow_colors)
         for color in rainbow_colors:
-            pygame.draw.circle(self.screen, color, screen_pos, total_radius)
-            total_radius -= 3
+            pygame.draw.circle(self.screen, color, screen_pos, int(radius))
+            radius -= step
 
     def _draw_zones(self) -> None:
         """Draws circles representing the zones over the connections."""
-        radius = 21  # min 21 for rainbow wheel
+        radius = self.base_radius
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
@@ -130,8 +135,8 @@ class Visualizer:
             if color_name is None:
                 pygame.draw.circle(self.screen, default, screen_pos, radius)
                 return
-            if color_name.lower() == "rainbow" and radius >= 21:
-                self._draw_rainbow_wheel(screen_pos, radius)
+            if color_name.lower() == "rainbow":
+                self._draw_rainbow_wheel(screen_pos)
                 return
             rgb_color = self.COLORS.get(color_name.lower(), default)
             pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
@@ -148,7 +153,8 @@ class Visualizer:
                     self.height = event.h
                     (
                         self.scale_x, self.scale_y,
-                        self.offset_x, self.offset_y
+                        self.offset_x, self.offset_y,
+                        self.base_radius
                     ) = self._calculate_scale_factors()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
