@@ -1,3 +1,4 @@
+import math
 import pygame
 from graph import Graph
 
@@ -117,18 +118,36 @@ class Visualizer:
     def _draw_connections(self) -> None:
         """Draws lines between connected zones."""
         line_color = (255, 255, 255)  # White
-        line_width = 3
+        line_width = 2
+        spacing = 6
         for edge in self.graph.edges:
             z1 = self.graph.zones.get(edge.zone1)
             z2 = self.graph.zones.get(edge.zone2)
             if z1 and z2:
                 start_x, start_y = self.graph.get_coords(z1)
                 end_x, end_y = self.graph.get_coords(z2)
-                start_pos = self._transform_coords(start_x, start_y)
-                end_pos = self._transform_coords(end_x, end_y)
-                pygame.draw.line(
-                    self.screen, line_color, start_pos, end_pos, line_width
-                )
+                sx1, sy1 = self._transform_coords(start_x, start_y)
+                sx2, sy2 = self._transform_coords(end_x, end_y)
+                capacity = edge.capacity
+                dx = sx2 - sx1
+                dy = sy2 - sy1
+                length = math.hypot(dx, dy)
+                if length == 0:
+                    continue
+                # Calculate the perpendicular (normal) unit vector
+                nx = -dy / length
+                ny = dx / length
+                for i in range(capacity):
+                    offset_multiplier = i - ((capacity - 1) / 2.0)
+                    total_offset = offset_multiplier * spacing
+                    off_sx1 = sx1 + (nx * total_offset)
+                    off_sy1 = sy1 + (ny * total_offset)
+                    off_sx2 = sx2 + (nx * total_offset)
+                    off_sy2 = sy2 + (ny * total_offset)
+                    pygame.draw.line(
+                        self.screen, line_color, (int(off_sx1), int(off_sy1)),
+                        (int(off_sx2), int(off_sy2)), line_width
+                    )
 
     def _draw_rainbow_wheel(self, screen_pos: tuple[int, int]) -> None:
         """
