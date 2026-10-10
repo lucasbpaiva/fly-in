@@ -119,7 +119,7 @@ class Visualizer:
         """Draws lines between connected zones."""
         line_color = (255, 255, 255)  # White
         line_width = 2
-        spacing = 6
+        spacing = 6 * self.zoom
         for edge in self.graph.edges:
             z1 = self.graph.zones.get(edge.zone1)
             z2 = self.graph.zones.get(edge.zone2)
