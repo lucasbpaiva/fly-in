@@ -4,7 +4,32 @@ from graph import Graph
 
 
 class Visualizer:
-    """
+    """A Pygame-based graphical interface for visualizing the drone simulation.
+
+    Manages a resizable 2D canvas that renders physical nodes (zones) and their
+    interconnecting paths (edges).
+    Features an interactive camera with click-and-drag panning
+    and scroll-wheel zooming.
+
+    Attributes:
+        COLORS: A mapping of color string names to their corresponding
+            RGB tuple values.
+        screen: The primary Pygame display surface.
+        clock: The internal clock used to cap the frame rate.
+        running: Flag indicating whether the main event loop is active.
+        graph: The operational network topology containing zones and edges.
+        width: The current width of the Pygame window in pixels.
+        height: The current height of the Pygame window in pixels.
+        zones: A flattened list of all graph zones.
+        pan_x: The current horizontal camera offset in pixels.
+        pan_y: The current vertical camera offset in pixels.
+        zoom: The current camera zoom multiplier.
+        is_panning: Flag tracking if the user is currently in panning mode.
+        scale_x: The internal base scaling factor for the X-axis.
+        scale_y: The internal base scaling factor for the Y-axis.
+        offset_x: The internal base centering offset for the X-axis.
+        offset_y: The internal base centering offset for the Y-axis.
+        base_radius: The calculated base radius for drawing zone circles.
     """
     COLORS = {
         "green": (0, 128, 0),
@@ -28,7 +53,16 @@ class Visualizer:
     }
 
     def __init__(self, graph: Graph, width: int = 800, height: int = 600):
-        """
+        """Initializes Pygame display and calculates initial camera boundaries.
+
+        Configures a resizable display window, extracts all distinct zones from
+        the provided graph, and computes the optimal initial scale, zoom, and
+        pan to ensure the graph is centered and reasonably sized upon launch.
+
+        Args:
+            graph: The parsed network topology mapping all simulation nodes.
+            width: The initial window width in pixels. Defaults to 800.
+            height: The initial window height in pixels. Defaults to 600.
         """
         pygame.init()
         self.screen = pygame.display.set_mode(
@@ -45,7 +79,7 @@ class Visualizer:
         self.pan_y = 0.0
         self.zoom = 1.0
         self.is_panning = False
-        (  # Calculate these once during initialization
+        (
             self.scale_x, self.scale_y,
             self.offset_x, self.offset_y,
             self.base_radius
@@ -150,8 +184,7 @@ class Visualizer:
                     )
 
     def _draw_rainbow_wheel(self, screen_pos: tuple[int, int]) -> None:
-        """
-        """
+        """Draws the rainbow wheel using the dynamically provided radius."""
         rainbow_colors = [
             self.COLORS["red"],
             self.COLORS["orange"],
@@ -185,7 +218,12 @@ class Visualizer:
             pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
 
     def render(self) -> None:
-        """
+        """Executes main Pygame event loop and continuously redraws the frame.
+
+        Maintains a 60 FPS update cycle. Intercepts and processes OS window
+        events, keyboard interaction and mouse inputs for manipulating the
+        interactive camera (panning and zooming). Clears the screen
+        and redraws all edges and zones on every tick.
         """
         while self.running:
             for event in pygame.event.get():
