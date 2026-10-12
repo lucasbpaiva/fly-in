@@ -148,7 +148,9 @@ def main() -> None:
                 # Access the physical node object
                 # to get exact coordinates for the sprite
                 pass
-    except (ParsingError, FileNotFoundError, PermissionError, IOError) as e:
+    except (
+        ParsingError, ValueError, FileNotFoundError, PermissionError, IOError
+    ) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
