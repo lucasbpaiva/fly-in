@@ -142,8 +142,8 @@ class Visualizer:
 
     def _transform_coords(self, x: float, y: float) -> tuple[int, int]:
         """Converts logical grid coordinates to physical pixel coordinates."""
-        base_x = int(x * self.scale_x + self.offset_x)
-        base_y = int(y * self.scale_y + self.offset_y)
+        base_x = x * self.scale_x + self.offset_x
+        base_y = y * self.scale_y + self.offset_y
         cx, cy = self.width / 2, self.height / 2
         screen_x = int((base_x - cx) * self.zoom + cx + self.pan_x)
         screen_y = int((base_y - cy) * self.zoom + cy + self.pan_y)
@@ -260,7 +260,7 @@ class Visualizer:
                     zoom_factor = 1.15 if event.y > 0 else (1 / 1.15)
                     self.zoom *= zoom_factor
                     # Clamp zoom to prevent flipping or freezing
-                    self.zoom = max(0.2, min(self.zoom, 30.0))
+                    self.zoom = max(0.5, min(self.zoom, 15.0))
                     # Adjust panning so the zoom centers on the mouse cursor
                     ratio = self.zoom / old_zoom
                     self.pan_x = mx - cx - (mx - cx - self.pan_x) * ratio
