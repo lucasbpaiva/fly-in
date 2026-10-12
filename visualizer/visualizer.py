@@ -211,10 +211,10 @@ class Visualizer:
             default = self.COLORS["default"]
             if color_name is None:
                 pygame.draw.circle(self.screen, default, screen_pos, radius)
-                return
+                continue
             if color_name.lower() == "rainbow":
                 self._draw_rainbow_wheel(screen_pos)
-                return
+                continue
             rgb_color = self.COLORS.get(color_name.lower(), default)
             pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
             pygame.draw.circle(self.screen, white, screen_pos, radius, 2)
