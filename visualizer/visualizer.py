@@ -1,3 +1,4 @@
+import sys
 import math
 import pygame
 from graph import Graph
@@ -183,7 +184,9 @@ class Visualizer:
                         (int(off_sx2), int(off_sy2)), line_width
                     )
 
-    def _draw_rainbow_wheel(self, screen_pos: tuple[int, int]) -> None:
+    def _draw_rainbow_wheel(
+        self, screen_pos: tuple[int, int], radius: float
+    ) -> None:
         """Draws the rainbow wheel using the dynamically provided radius."""
         rainbow_colors = [
             self.COLORS["red"],
@@ -194,7 +197,6 @@ class Visualizer:
             self.COLORS["indigo"],
             self.COLORS["violet"],
         ]
-        radius = float(max(5, int(self.base_radius * self.zoom)))
         step = radius / len(rainbow_colors)
         for color in rainbow_colors:
             pygame.draw.circle(self.screen, color, screen_pos, int(radius))
@@ -202,22 +204,28 @@ class Visualizer:
 
     def _draw_zones(self) -> None:
         """Draws circles representing the zones over the connections."""
-        radius = max(5, int(self.base_radius * self.zoom))
+        base_zoomed_radius = max(5, int(self.base_radius * self.zoom))
         white = (255, 255, 255)
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
+            capacity = zone.capacity
+            if capacity == sys.maxsize or capacity == float('inf'):
+                capacity = self.graph.nb_drones
+            multiplier = min(math.sqrt(capacity), 5.0)
+            radius = base_zoomed_radius * multiplier
             color_name = zone.color
             default = self.COLORS["default"]
             if color_name is None:
-                pygame.draw.circle(self.screen, default, screen_pos, radius)
-                continue
-            if color_name.lower() == "rainbow":
-                self._draw_rainbow_wheel(screen_pos)
-                continue
-            rgb_color = self.COLORS.get(color_name.lower(), default)
-            pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
-            pygame.draw.circle(self.screen, white, screen_pos, radius, 2)
+                pygame.draw.circle(
+                    self.screen, default, screen_pos, int(radius)
+                )
+            elif color_name.lower() == "rainbow":
+                self._draw_rainbow_wheel(screen_pos, radius)
+            else:
+                color = self.COLORS.get(color_name.lower(), default)
+                pygame.draw.circle(self.screen, color, screen_pos, int(radius))
+            pygame.draw.circle(self.screen, white, screen_pos, int(radius), 2)
 
     def render(self) -> None:
         """Executes main Pygame event loop and continuously redraws the frame.
