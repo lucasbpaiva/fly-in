@@ -28,6 +28,16 @@ class Graph:
         }
         self.adj_list: dict[str, set[Zone]] = self._build_adj_list(self.edges)
         self.max_edge_length = self._calculate_max_edge_length()
+        if self.start_zone.type.lower() == "blocked":
+            raise ValueError(
+                "Invalid graph: "
+                f"Start zone '{self.start_zone.name}' cannot be blocked."
+            )
+        if self.end_zone.type.lower() == "blocked":
+            raise ValueError(
+                "Invalid graph: "
+                f"End zone '{self.end_zone.name}' cannot be blocked."
+            )
         self._validate_connectivity()
 
     def _build_adj_list(self, edges: list[Connection]) -> dict[str, set[Zone]]:
@@ -56,12 +66,14 @@ class Graph:
             if current_name == self.end_zone.name:
                 return
             for neighbor in self.adj_list.get(current_name, set()):
-                if neighbor.name not in visited:
+                is_blocked = neighbor.type.lower() == "blocked"
+                if not is_blocked and neighbor.name not in visited:
                     visited.add(neighbor.name)
                     queue.append(neighbor.name)
         raise ValueError(
-            f"Disconnected graph: No valid path exists from "
-            f"'{self.start_zone.name}' to '{self.end_zone.name}'."
+            "Unsolvable map: No valid path exists from "
+            f"'{self.start_zone.name}' to '{self.end_zone.name}' "
+            "due to blocked zones or disconnected paths."
         )
 
     def get_neighbors(
