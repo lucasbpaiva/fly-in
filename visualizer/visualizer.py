@@ -1,7 +1,9 @@
 import sys
 import math
-import pygame
 from graph import Graph
+import os
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
+import pygame  # noqa: E402
 
 
 class Visualizer:
