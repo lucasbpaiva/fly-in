@@ -1,5 +1,6 @@
 VENV = venv
 PYTHON = $(VENV)/bin/python3
+MAIN = fly_in.py
 PIP = $(VENV)/bin/pip
 FLAKE8 = $(VENV)/bin/flake8
 MYPY = $(VENV)/bin/mypy
@@ -16,10 +17,10 @@ $(VENV)/bin/activate: requirements.txt
 install: $(VENV)/bin/activate
 
 run: $(VENV)/bin/activate
-	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) main.py $(MAP) $(ARGS)
+	@PYGAME_HIDE_SUPPORT_PROMPT=1 $(PYTHON) $(MAIN) $(MAP) $(ARGS)
 
 debug: install
-	@$(PYTHON) -m pdb main.py $(MAP)
+	@$(PYTHON) -m pdb $(MAIN) $(MAP)
 # n (next): Execute the current line and move to the next line in the current function.
 # s (step): Step into the function called on the current line.
 # c (continue): Resume normal program execution until it hits the next breakpoint or finishes.
