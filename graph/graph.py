@@ -119,7 +119,7 @@ class Graph:
     def get_coords(self, node: Zone | Connection) -> tuple[float, float]:
         """Extract spatial coordinates safely for Zones and Connections."""
         if isinstance(node, Zone):
-            return node.x, node.y
+            return node.x, -node.y
         # If the drone is inside a connection, approximate its location
         # as the exact midpoint between the two connecting zones.
         z1 = self.zones[node.zone1]
