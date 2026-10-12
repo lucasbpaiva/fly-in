@@ -28,6 +28,7 @@ class Graph:
         }
         self.adj_list: dict[str, set[Zone]] = self._build_adj_list(self.edges)
         self.max_edge_length = self._calculate_max_edge_length()
+        self._validate_connectivity()
 
     def _build_adj_list(self, edges: list[Connection]) -> dict[str, set[Zone]]:
         """Construct bidirectional adjacency mapping for O(1) neighbor lookups.
@@ -44,6 +45,24 @@ class Graph:
             adj[edge.zone1].add(self.zones[edge.zone2])
             adj[edge.zone2].add(self.zones[edge.zone1])
         return adj
+
+    def _validate_connectivity(self) -> None:
+        """Performs BFS to ensure the end zone is reachable from the start."""
+        visited = set()
+        queue = [self.start_zone.name]
+        visited.add(self.start_zone.name)
+        while queue:
+            current_name = queue.pop(0)
+            if current_name == self.end_zone.name:
+                return
+            for neighbor in self.adj_list.get(current_name, set()):
+                if neighbor.name not in visited:
+                    visited.add(neighbor.name)
+                    queue.append(neighbor.name)
+        raise ValueError(
+            f"Disconnected graph: No valid path exists from "
+            f"'{self.start_zone.name}' to '{self.end_zone.name}'."
+        )
 
     def get_neighbors(
         self, node: Zone | Connection
