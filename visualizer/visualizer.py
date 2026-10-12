@@ -203,6 +203,7 @@ class Visualizer:
     def _draw_zones(self) -> None:
         """Draws circles representing the zones over the connections."""
         radius = max(5, int(self.base_radius * self.zoom))
+        white = (255, 255, 255)
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
@@ -216,6 +217,7 @@ class Visualizer:
                 return
             rgb_color = self.COLORS.get(color_name.lower(), default)
             pygame.draw.circle(self.screen, rgb_color, screen_pos, radius)
+            pygame.draw.circle(self.screen, white, screen_pos, radius, 2)
 
     def render(self) -> None:
         """Executes main Pygame event loop and continuously redraws the frame.
