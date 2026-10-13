@@ -124,7 +124,7 @@ class Visualizer:
         screen_center_x = self.width / 2
         screen_center_y = self.height / 2
         offset_x = screen_center_x - (logical_center_x * scale)
-        offset_y = screen_center_y - (logical_center_y * scale)
+        offset_y = screen_center_y - (-logical_center_y * scale)
         if graph_width > 10:
             self.zoom = graph_width / 10.0
             start_x, start_y = self.graph.get_coords(self.graph.start_zone)
@@ -147,7 +147,7 @@ class Visualizer:
     def _transform_coords(self, x: float, y: float) -> tuple[int, int]:
         """Converts logical grid coordinates to physical pixel coordinates."""
         base_x = x * self.scale_x + self.offset_x
-        base_y = y * self.scale_y + self.offset_y
+        base_y = -y * self.scale_y + self.offset_y
         cx, cy = self.width / 2, self.height / 2
         screen_x = int((base_x - cx) * self.zoom + cx + self.pan_x)
         screen_y = int((base_y - cy) * self.zoom + cy + self.pan_y)
