@@ -1,6 +1,6 @@
 import sys
 import argparse
-from graph import Graph
+from graph import Graph, Zone, Connection
 from visualizer import Visualizer
 from parser import MapParser, ParsingError
 from simulation import SimulationEngine, Pathfinder
@@ -130,6 +130,11 @@ def main() -> None:
         engine = SimulationEngine(graph)
         pathfinder = Pathfinder(engine)
         pathfinder.precompute_routes()
+
+        def capture_state() -> dict[str, Zone | Connection]:
+            return {d.id: d.location for d in engine.drones.values()}
+
+        history = [capture_state()]
         while not engine.is_finished:
             requested_moves = pathfinder.get_next_moves()
             successful_moves = engine.play_turn(requested_moves)
@@ -141,13 +146,10 @@ def main() -> None:
             pathfinder.resolve_completed_moves(successful_moves)
             if successful_moves:
                 print_output(successful_moves, graph)
+            history.append(capture_state())
         if args.visualize:
             visualizer = Visualizer(graph)
-            visualizer.render()
-            for drone in engine.drones.values():
-                # Access the physical node object
-                # to get exact coordinates for the sprite
-                pass
+            visualizer.render(list(engine.drones.values()), history)
     except (
         ParsingError, ValueError, FileNotFoundError, PermissionError, IOError
     ) as e:
