@@ -1,6 +1,7 @@
 import sys
 import math
-from graph import Graph
+from graph import Graph, Zone, Connection
+from simulation import Drone
 import os
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 import pygame  # noqa: E402
@@ -229,7 +230,32 @@ class Visualizer:
                 pygame.draw.circle(self.screen, color, screen_pos, int(radius))
             pygame.draw.circle(self.screen, white, screen_pos, int(radius), 2)
 
-    def render(self) -> None:
+    def _draw_drones(
+        self,
+        drones: list[Drone],
+        history: list[dict[str, Zone | Connection]],
+        turn: int,
+        progress: float
+    ) -> None:
+        """Draws drones interpolating between current turn and next turn."""
+        drone_radius = max(3, int(self.base_radius * self.zoom * 0.4))
+        current_state = history[turn]
+        next_state = history[min(turn + 1, len(history) - 1)]
+        for drone in drones:
+            start_loc = current_state[drone.id]
+            end_loc = next_state[drone.id]
+            start_coords = self.graph.get_coords(start_loc)
+            end_coords = self.graph.get_coords(end_loc)
+            start_vec = pygame.math.Vector2(start_coords)
+            end_vec = pygame.math.Vector2(end_coords)
+            logical_pos = start_vec.lerp(end_vec, progress)
+            screen_pos = self._transform_coords(logical_pos.x, logical_pos.y)
+            color = self.COLORS["cyan"]
+            pygame.draw.circle(self.screen, color, screen_pos, drone_radius)
+
+    def render(
+        self, drones: list[Drone], history: list[dict[str, Zone | Connection]]
+    ) -> None:
         """Executes main Pygame event loop and continuously redraws the frame.
 
         Maintains a 60 FPS update cycle. Intercepts and processes OS window
@@ -237,6 +263,10 @@ class Visualizer:
         interactive camera (panning and zooming). Clears the screen
         and redraws all edges and zones on every tick.
         """
+        tick_progress = 0.0
+        current_turn = 0
+        animation_speed = 0.05
+        max_turn = len(history) - 1
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -277,9 +307,17 @@ class Visualizer:
                     ratio = self.zoom / old_zoom
                     self.pan_x = mx - cx - (mx - cx - self.pan_x) * ratio
                     self.pan_y = my - cy - (my - cy - self.pan_y) * ratio
+            if current_turn < max_turn:
+                tick_progress += animation_speed
+                if tick_progress >= 1.0:
+                    current_turn += 1
+                    tick_progress = 0.0
+            else:
+                tick_progress = 0.0  # Reached the end, stop animating
             self.screen.fill(color=(30, 30, 30))
             self._draw_connections()
             self._draw_zones()
+            self._draw_drones(drones, history, current_turn, tick_progress)
             pygame.display.flip()
             self.clock.tick(60)
         pygame.quit()
