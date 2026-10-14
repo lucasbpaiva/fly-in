@@ -47,8 +47,10 @@ class Visualizer:
         "lime": (0, 255, 0),
         "magenta": (255, 0, 255),
         "gold": (255, 215, 0),
+        "silver": (192, 192, 192),
         "black": (0, 0, 0),
         "maroon": (128, 0, 0),
+        "gray": (128, 128, 128),
         "darkred": (139, 0, 0),
         "violet": (238, 130, 238),
         "crimson": (220, 20, 60),
@@ -315,8 +317,17 @@ class Visualizer:
             end_pos = self._get_drone_screen_pos(end_loc, end_idx, end_count)
             current_pos = start_pos.lerp(end_pos, progress)
             screen_pos = (int(current_pos.x), int(current_pos.y))
-            color = self.COLORS["cyan"]
-            pygame.draw.circle(self.screen, color, screen_pos, drone_radius)
+            color = self.COLORS["silver"]
+            x, y = screen_pos
+            r = drone_radius
+            vertices = [
+                (x, y - r),
+                (x + r, y),
+                (x, y + r),
+                (x - r, y)
+            ]
+            pygame.draw.polygon(self.screen, color, vertices)
+            pygame.draw.polygon(self.screen, (255, 255, 255), vertices, 2)
 
     def render(
         self, drones: list[Drone], history: list[dict[str, Zone | Connection]]
@@ -347,6 +358,10 @@ class Visualizer:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE or event.key == pygame.K_q:
                         self.running = False
+                    # --- REPLAY ANIMATION ---
+                    elif event.key == pygame.K_r:
+                        current_turn = 0
+                        tick_progress = 0.0
                 # --- CAMERA CONTROLS ---
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
