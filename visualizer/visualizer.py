@@ -251,7 +251,7 @@ class Visualizer:
         return drone_info
 
     def _get_drone_screen_pos(
-        self, location, index: int, count: int
+        self, location: Zone | Connection, index: int, count: int
     ) -> pygame.math.Vector2:
         """Calculate exact screen coordinates for lanes and clusters."""
         logical_x, logical_y = self.graph.get_coords(location)
