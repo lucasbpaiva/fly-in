@@ -215,7 +215,7 @@ class Visualizer:
             capacity = zone.capacity
             if capacity == sys.maxsize or capacity == float('inf'):
                 capacity = self.graph.nb_drones
-            multiplier = min(math.sqrt(capacity), 5.0)
+            multiplier = min(math.sqrt(capacity), 3.0)
             radius = base_zoomed_radius * multiplier
             color_name = zone.color
             default = self.COLORS["default"]
@@ -230,6 +230,67 @@ class Visualizer:
                 pygame.draw.circle(self.screen, color, screen_pos, int(radius))
             pygame.draw.circle(self.screen, white, screen_pos, int(radius), 2)
 
+    def _get_drone_state_info(
+        self, state: dict[str, Zone | Connection]
+    ) -> dict[str, tuple[int, int]]:
+        """Group drones by location to assign lane/slot indices."""
+        groups: dict[str, list[str]] = {}
+        for d_id, loc in state.items():
+            loc_key = loc.name
+            if loc_key not in groups:
+                groups[loc_key] = []
+            groups[loc_key].append(d_id)
+        drone_info = {}
+        for loc_key, d_ids in groups.items():
+            d_ids.sort(key=lambda d_id: int(d_id.replace("D", "")))
+            count = len(d_ids)
+            for index, d_id in enumerate(d_ids):
+                drone_info[d_id] = (index, count)
+        return drone_info
+
+    def _get_drone_screen_pos(
+        self, location, index: int, count: int
+    ) -> pygame.math.Vector2:
+        """Calculate exact screen coordinates for lanes and clusters."""
+        logical_x, logical_y = self.graph.get_coords(location)
+        sx = float(self._transform_coords(logical_x, logical_y)[0])
+        sy = float(self._transform_coords(logical_x, logical_y)[1])
+        if isinstance(location, Zone):
+            # Spread drones in a circular pattern if there is more than one
+            if count > 1:
+                angle = (2 * math.pi / count) * index
+                capacity = location.capacity
+                if capacity == sys.maxsize or capacity == float('inf'):
+                    capacity = self.graph.nb_drones
+                multiplier = min(math.sqrt(capacity), 3.0)
+                inner_radius = self.base_radius * self.zoom * multiplier * 0.6
+                spread_radius = max(4, int(inner_radius))
+                sx += math.cos(angle) * spread_radius
+                sy += math.sin(angle) * spread_radius
+        elif isinstance(location, Connection):
+            # Calculate lane offsets (identical to _draw_connections logic)
+            z1 = self.graph.zones.get(location.zone1)
+            z2 = self.graph.zones.get(location.zone2)
+            if z1 and z2:
+                x1, y1 = self.graph.get_coords(z1)
+                x2, y2 = self.graph.get_coords(z2)
+                sx1, sy1 = self._transform_coords(x1, y1)
+                sx2, sy2 = self._transform_coords(x2, y2)
+                dx = sx2 - sx1
+                dy = sy2 - sy1
+                length = math.hypot(dx, dy)
+                if length > 0:
+                    nx = -dy / length
+                    ny = dx / length
+                    capacity = location.capacity
+                    if capacity == sys.maxsize or capacity <= 0:
+                        capacity = 1
+                    spacing = 6 * self.zoom
+                    offset_multiplier = index - ((capacity - 1) / 2.0)
+                    sx += nx * offset_multiplier * spacing
+                    sy += ny * offset_multiplier * spacing
+        return pygame.math.Vector2(sx, sy)
+
     def _draw_drones(
         self,
         drones: list[Drone],
@@ -241,15 +302,19 @@ class Visualizer:
         drone_radius = max(3, int(self.base_radius * self.zoom * 0.4))
         current_state = history[turn]
         next_state = history[min(turn + 1, len(history) - 1)]
+        current_info = self._get_drone_state_info(current_state)
+        next_info = self._get_drone_state_info(next_state)
         for drone in drones:
             start_loc = current_state[drone.id]
             end_loc = next_state[drone.id]
-            start_coords = self.graph.get_coords(start_loc)
-            end_coords = self.graph.get_coords(end_loc)
-            start_vec = pygame.math.Vector2(start_coords)
-            end_vec = pygame.math.Vector2(end_coords)
-            logical_pos = start_vec.lerp(end_vec, progress)
-            screen_pos = self._transform_coords(logical_pos.x, logical_pos.y)
+            start_idx, start_count = current_info[drone.id]
+            end_idx, end_count = next_info[drone.id]
+            start_pos = self._get_drone_screen_pos(
+                start_loc, start_idx, start_count
+            )
+            end_pos = self._get_drone_screen_pos(end_loc, end_idx, end_count)
+            current_pos = start_pos.lerp(end_pos, progress)
+            screen_pos = (int(current_pos.x), int(current_pos.y))
             color = self.COLORS["cyan"]
             pygame.draw.circle(self.screen, color, screen_pos, drone_radius)
 
