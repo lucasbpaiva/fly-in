@@ -48,6 +48,7 @@ class Visualizer:
         "magenta": (255, 0, 255),
         "gold": (255, 215, 0),
         "silver": (192, 192, 192),
+        "hotpink": (255, 105, 180),
         "black": (0, 0, 0),
         "maroon": (128, 0, 0),
         "gray": (128, 128, 128),
@@ -120,7 +121,7 @@ class Visualizer:
         scale = min(scale_x, scale_y)
         if scale == inf:
             scale = 1.0
-        base_radius = max(5, int(scale * 0.2))
+        base_radius = max(5, int(scale * 0.15))
         logical_center_x = min_x + (graph_width / 2)
         logical_center_y = min_y + (graph_height / 2)
         screen_center_x = self.width / 2
@@ -380,7 +381,7 @@ class Visualizer:
         progress: float
     ) -> None:
         """Draws drones interpolating between current turn and next turn."""
-        r = max(3, int(self.base_radius * self.zoom * 0.4))
+        r = max(3, int(self.base_radius * self.zoom * 0.9))
         current_state = history[turn]
         next_state = history[min(turn + 1, len(history) - 1)]
         current_info = self._get_drone_state_info(current_state)
@@ -401,7 +402,7 @@ class Visualizer:
             )
             current_pos = self._point_along(path, progress)
             x, y = (int(current_pos.x), int(current_pos.y))
-            color = self.COLORS["silver"]
+            color = self.COLORS["hotpink"]
             vertices = [(x, y - r), (x + r, y), (x, y + r), (x - r, y)]
             pygame.draw.polygon(self.screen, color, vertices)
             pygame.draw.polygon(self.screen, (255, 255, 255), vertices, 2)
