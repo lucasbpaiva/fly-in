@@ -232,6 +232,20 @@ class Visualizer:
                 color = self.COLORS.get(color_name.lower(), default)
                 pygame.draw.circle(self.screen, color, screen_pos, int(radius))
             pygame.draw.circle(self.screen, white, screen_pos, int(radius), 2)
+            if zone.type == "blocked":
+                offset = int(radius * math.sin(math.pi / 4))
+                cx, cy = screen_pos
+                line_width = max(2, int(3 * self.zoom))
+                pygame.draw.line(
+                    self.screen, white,
+                    (cx - offset, cy - offset), (cx + offset, cy + offset),
+                    line_width
+                )
+                pygame.draw.line(
+                    self.screen, white,
+                    (cx - offset, cy + offset), (cx + offset, cy - offset),
+                    line_width
+                )
 
     def _get_drone_state_info(
         self, state: dict[str, Zone | Connection]
