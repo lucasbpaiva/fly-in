@@ -250,13 +250,110 @@ class Visualizer:
                 drone_info[d_id] = (index, count)
         return drone_info
 
+    def _lane_point(
+        self, edge: Connection, lane: int, zone_name: str
+    ) -> pygame.math.Vector2:
+        """Screen point where a given lane touches the given end of an edge.
+
+        Uses the same normal/spacing math as _draw_connections so that drones
+        sit exactly on the drawn lines.
+        """
+        z1 = self.graph.zones[edge.zone1]
+        z2 = self.graph.zones[edge.zone2]
+        p1 = pygame.math.Vector2(
+            self._transform_coords(*self.graph.get_coords(z1))
+        )
+        p2 = pygame.math.Vector2(
+            self._transform_coords(*self.graph.get_coords(z2))
+        )
+        base = p1 if zone_name == edge.zone1 else p2
+        d = p2 - p1
+        length = d.length()
+        if length == 0:
+            return base
+        normal = pygame.math.Vector2(-d.y, d.x) / length
+        capacity = edge.capacity
+        if capacity == sys.maxsize or capacity <= 0:
+            capacity = 1
+        offset = (lane - (capacity - 1) / 2.0) * 6 * self.zoom
+        return base + normal * offset
+
+    def _get_transit_lanes(
+        self,
+        current_state: dict[str, Zone | Connection],
+        next_state: dict[str, Zone | Connection],
+    ) -> dict[str, int]:
+        """Assign lanes to drones that hop directly zone -> zone this turn."""
+        groups: dict[tuple[str, str], list[str]] = {}
+        for d_id, start in current_state.items():
+            end = next_state[d_id]
+            if (
+                isinstance(start, Zone) and isinstance(end, Zone)
+                and start.name != end.name
+            ):
+                key = (min(start.name, end.name), max(start.name, end.name))
+                groups.setdefault(key, []).append(d_id)
+        lanes: dict[str, int] = {}
+        for ids in groups.values():
+            ids.sort(key=lambda d: int(d.replace("D", "")))
+            for i, d_id in enumerate(ids):
+                lanes[d_id] = i
+        return lanes
+
+    def _build_drone_path(
+        self,
+        start_loc: Zone | Connection,
+        end_loc: Zone | Connection,
+        start_pos: pygame.math.Vector2,
+        end_pos: pygame.math.Vector2,
+        start_idx: int,
+        end_idx: int,
+        transit_lane: int,
+    ) -> list[pygame.math.Vector2]:
+        """Waypoints a drone follows during one turn, routed through lanes."""
+        path = [start_pos]
+        if isinstance(start_loc, Zone) and isinstance(end_loc, Zone):
+            if start_loc.name != end_loc.name:
+                edge = self.graph.get_connection(start_loc.name, end_loc.name)
+                if edge is not None:
+                    path.append(
+                        self._lane_point(edge, transit_lane, start_loc.name)
+                    )
+                    path.append(
+                        self._lane_point(edge, transit_lane, end_loc.name)
+                    )
+        elif isinstance(start_loc, Zone) and isinstance(end_loc, Connection):
+            # Leaving a zone onto a lane
+            path.append(self._lane_point(end_loc, end_idx, start_loc.name))
+        elif isinstance(start_loc, Connection) and isinstance(end_loc, Zone):
+            # Arriving at a zone from a lane
+            path.append(self._lane_point(start_loc, start_idx, end_loc.name))
+        path.append(end_pos)
+        return path
+
+    @staticmethod
+    def _point_along(
+        path: list[pygame.math.Vector2], t: float
+    ) -> pygame.math.Vector2:
+        """Point at fraction t of the total length of a polyline."""
+        segments = list(zip(path, path[1:]))
+        lengths = [a.distance_to(b) for a, b in segments]
+        total = sum(lengths)
+        if total == 0:
+            return path[-1]
+        target = t * total
+        for (a, b), length in zip(segments, lengths):
+            if length > 0 and target <= length:
+                return a.lerp(b, target / length)
+            target -= length
+        return path[-1]
+
     def _get_drone_screen_pos(
         self, location: Zone | Connection, index: int, count: int
     ) -> pygame.math.Vector2:
         """Calculate exact screen coordinates for lanes and clusters."""
         logical_x, logical_y = self.graph.get_coords(location)
-        sx = float(self._transform_coords(logical_x, logical_y)[0])
-        sy = float(self._transform_coords(logical_x, logical_y)[1])
+        sx, sy = map(float, self._transform_coords(logical_x, logical_y))
         if isinstance(location, Zone):
             # Spread drones in a circular pattern if there is more than one
             if count > 1:
@@ -269,29 +366,11 @@ class Visualizer:
                 spread_radius = max(4, int(inner_radius))
                 sx += math.cos(angle) * spread_radius
                 sy += math.sin(angle) * spread_radius
+            return pygame.math.Vector2(sx, sy)
         elif isinstance(location, Connection):
-            # Calculate lane offsets (identical to _draw_connections logic)
-            z1 = self.graph.zones.get(location.zone1)
-            z2 = self.graph.zones.get(location.zone2)
-            if z1 and z2:
-                x1, y1 = self.graph.get_coords(z1)
-                x2, y2 = self.graph.get_coords(z2)
-                sx1, sy1 = self._transform_coords(x1, y1)
-                sx2, sy2 = self._transform_coords(x2, y2)
-                dx = sx2 - sx1
-                dy = sy2 - sy1
-                length = math.hypot(dx, dy)
-                if length > 0:
-                    nx = -dy / length
-                    ny = dx / length
-                    capacity = location.capacity
-                    if capacity == sys.maxsize or capacity <= 0:
-                        capacity = 1
-                    spacing = 6 * self.zoom
-                    offset_multiplier = index - ((capacity - 1) / 2.0)
-                    sx += nx * offset_multiplier * spacing
-                    sy += ny * offset_multiplier * spacing
-        return pygame.math.Vector2(sx, sy)
+            a = self._lane_point(location, index, location.zone1)
+            b = self._lane_point(location, index, location.zone2)
+            return (a + b) / 2
 
     def _draw_drones(
         self,
@@ -301,11 +380,12 @@ class Visualizer:
         progress: float
     ) -> None:
         """Draws drones interpolating between current turn and next turn."""
-        drone_radius = max(3, int(self.base_radius * self.zoom * 0.4))
+        r = max(3, int(self.base_radius * self.zoom * 0.4))
         current_state = history[turn]
         next_state = history[min(turn + 1, len(history) - 1)]
         current_info = self._get_drone_state_info(current_state)
         next_info = self._get_drone_state_info(next_state)
+        transit_lanes = self._get_transit_lanes(current_state, next_state)
         for drone in drones:
             start_loc = current_state[drone.id]
             end_loc = next_state[drone.id]
@@ -315,17 +395,14 @@ class Visualizer:
                 start_loc, start_idx, start_count
             )
             end_pos = self._get_drone_screen_pos(end_loc, end_idx, end_count)
-            current_pos = start_pos.lerp(end_pos, progress)
-            screen_pos = (int(current_pos.x), int(current_pos.y))
+            path = self._build_drone_path(
+                start_loc, end_loc, start_pos, end_pos,
+                start_idx, end_idx, transit_lanes.get(drone.id, 0)
+            )
+            current_pos = self._point_along(path, progress)
+            x, y = (int(current_pos.x), int(current_pos.y))
             color = self.COLORS["silver"]
-            x, y = screen_pos
-            r = drone_radius
-            vertices = [
-                (x, y - r),
-                (x + r, y),
-                (x, y + r),
-                (x - r, y)
-            ]
+            vertices = [(x, y - r), (x + r, y), (x, y + r), (x - r, y)]
             pygame.draw.polygon(self.screen, color, vertices)
             pygame.draw.polygon(self.screen, (255, 255, 255), vertices, 2)
 
@@ -394,7 +471,7 @@ class Visualizer:
                     tick_progress = 0.0
             else:
                 tick_progress = 0.0  # Reached the end, stop animating
-            self.screen.fill(color=(30, 30, 30))
+            self.screen.fill(color=(34, 36, 41))
             self._draw_connections()
             self._draw_zones()
             self._draw_drones(drones, history, current_turn, tick_progress)
