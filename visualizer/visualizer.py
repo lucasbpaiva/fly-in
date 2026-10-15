@@ -382,6 +382,8 @@ class Visualizer:
     ) -> None:
         """Draws drones interpolating between current turn and next turn."""
         r = max(3, int(self.base_radius * self.zoom * 0.9))
+        font_size = max(10, int(r * 1.2))
+        font = pygame.font.Font(None, font_size)
         current_state = history[turn]
         next_state = history[min(turn + 1, len(history) - 1)]
         current_info = self._get_drone_state_info(current_state)
@@ -406,6 +408,15 @@ class Visualizer:
             vertices = [(x, y - r), (x + r, y), (x, y + r), (x - r, y)]
             pygame.draw.polygon(self.screen, color, vertices)
             pygame.draw.polygon(self.screen, (255, 255, 255), vertices, 2)
+            try:
+                drone_num = int(drone.id.replace("D", ""))
+                label = f"{drone_num:02d}"
+            except ValueError:
+                label = drone.id[:2]
+            black = self.COLORS["black"]
+            text_surface = font.render(text=label, antialias=True, color=black)
+            text_rect = text_surface.get_rect(center=(x, y))
+            self.screen.blit(text_surface, text_rect)
 
     def render(
         self, drones: list[Drone], history: list[dict[str, Zone | Connection]]
