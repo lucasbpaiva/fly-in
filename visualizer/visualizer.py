@@ -475,6 +475,7 @@ class Visualizer:
         current_turn = 0
         animation_speed = 0.033
         max_turn = len(history) - 1
+        is_playing = True
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -494,6 +495,14 @@ class Visualizer:
                     elif event.key == pygame.K_r:
                         current_turn = 0
                         tick_progress = 0.0
+                    # --- PLAY/PAUSE CONTROL ---
+                    elif event.key == pygame.K_SPACE:
+                        is_playing = not is_playing
+                    # --- MANUAL STEP (RIGHT ARROW) ---
+                    elif event.key == pygame.K_RIGHT and not is_playing:
+                        if current_turn < max_turn:
+                            current_turn += 1
+                            tick_progress = 0.0
                 # --- CAMERA CONTROLS ---
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
@@ -519,13 +528,15 @@ class Visualizer:
                     ratio = self.zoom / old_zoom
                     self.pan_x = mx - cx - (mx - cx - self.pan_x) * ratio
                     self.pan_y = my - cy - (my - cy - self.pan_y) * ratio
-            if current_turn < max_turn:
-                tick_progress += animation_speed
-                if tick_progress >= 1.0:
-                    current_turn += 1
+            if is_playing:
+                if current_turn < max_turn:
+                    tick_progress += animation_speed
+                    if tick_progress >= 1.0:
+                        current_turn += 1
+                        tick_progress = 0.0
+                else:
                     tick_progress = 0.0
-            else:
-                tick_progress = 0.0  # Reached the end, stop animating
+                    is_playing = False
             self.screen.fill(color=(34, 36, 41))
             self._draw_connections()
             self._draw_zones()
