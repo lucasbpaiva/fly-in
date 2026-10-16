@@ -512,6 +512,12 @@ class Visualizer:
                             current_turn -= 1
                             tick_progress = 1.0
                             is_stepping_back = True
+                    elif event.key == pygame.K_1:
+                        animation_speed = 0.016  # 1 turns / second
+                    elif event.key == pygame.K_2:
+                        animation_speed = 0.033   # 2 turns / second
+                    elif event.key == pygame.K_3:
+                        animation_speed = 0.05  # 3 turns / second
                 # --- CAMERA CONTROLS ---
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
