@@ -128,8 +128,8 @@ class Visualizer:
         screen_center_y = self.height / 2
         offset_x = screen_center_x - (logical_center_x * scale)
         offset_y = screen_center_y - (-logical_center_y * scale)
-        if graph_width > 10:
-            self.zoom = graph_width / 10.0
+        if graph_width > 6:
+            self.zoom = graph_width / 6.0
             start_x, start_y = self.graph.get_coords(self.graph.start_zone)
             base_sx = start_x * scale + offset_x
             base_sy = start_y * scale + offset_y
@@ -444,7 +444,7 @@ class Visualizer:
         """
         tick_progress = 0.0
         current_turn = 0
-        animation_speed = 0.05
+        animation_speed = 0.033
         max_turn = len(history) - 1
         while self.running:
             for event in pygame.event.get():
