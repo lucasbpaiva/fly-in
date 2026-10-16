@@ -246,6 +246,20 @@ class Visualizer:
                     (cx - offset, cy + offset), (cx + offset, cy - offset),
                     line_width
                 )
+                pygame.draw.circle(
+                    self.screen, self.COLORS["red"],
+                    screen_pos, int(radius) + 6, 3
+                )
+            if zone.type == "restricted":
+                yellow = self.COLORS["yellow"]
+                pygame.draw.circle(
+                    self.screen, yellow, screen_pos, int(radius) + 6, 3
+                )
+            if zone.type == "priority":
+                lime = self.COLORS["lime"]
+                pygame.draw.circle(
+                    self.screen, lime, screen_pos, int(radius) + 6, 3
+                )
 
     def _get_drone_state_info(
         self, state: dict[str, Zone | Connection]
