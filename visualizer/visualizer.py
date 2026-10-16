@@ -212,6 +212,8 @@ class Visualizer:
         """Draws circles representing the zones over the connections."""
         base_zoomed_radius = max(5, int(self.base_radius * self.zoom))
         white = (255, 255, 255)
+        font_size = max(14, int(base_zoomed_radius * 1.2))
+        label_font = pygame.font.Font(size=font_size)
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
@@ -260,6 +262,12 @@ class Visualizer:
                 pygame.draw.circle(
                     self.screen, lime, screen_pos, int(radius) + 6, 3
                 )
+            if zone.is_start or zone.is_end:
+                text = "START" if zone.is_start else "END"
+                text_surface = label_font.render(text, True, white)
+                ty = screen_pos[1] - int(radius + (font_size * self.zoom))
+                text_rect = text_surface.get_rect(center=(screen_pos[0], ty))
+                self.screen.blit(text_surface, text_rect)
 
     def _get_drone_state_info(
         self, state: dict[str, Zone | Connection]
