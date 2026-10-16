@@ -60,7 +60,7 @@ def apply_rainbow(text: str) -> str:
     return "".join(colored_chars) + reset
 
 
-def print_output(moves: list[str], graph: Graph) -> None:
+def print_output(moves: list[str], graph: Graph, turn: int) -> None:
     """Prints the successful drone moves to the terminal with ANSI colors.
 
     Processes a list of move strings by parsing the individual node names
@@ -73,6 +73,7 @@ def print_output(moves: list[str], graph: Graph) -> None:
             (e.g., ["D1-gate1", "D2-waiting_area-goal"]).
         graph: The simulation graph containing the defined zones and
             their metadata, used for color lookups.
+        turn: Current simulation turn being printed
     """
     colored_output = []
     for move in moves:
@@ -92,6 +93,7 @@ def print_output(moves: list[str], graph: Graph) -> None:
             else:
                 colored_parts.append(node)
         colored_output.append("-".join(colored_parts))
+    print(f"Turn {turn}: ", end="")
     print(" ".join(colored_output))
 
 
@@ -145,7 +147,7 @@ def main() -> None:
                 continue
             pathfinder.resolve_completed_moves(successful_moves)
             if successful_moves:
-                print_output(successful_moves, graph)
+                print_output(successful_moves, graph, engine.turn)
             history.append(capture_state())
         if args.visualize:
             visualizer = Visualizer(graph)
