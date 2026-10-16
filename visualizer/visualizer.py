@@ -212,8 +212,10 @@ class Visualizer:
         """Draws circles representing the zones over the connections."""
         base_zoomed_radius = max(5, int(self.base_radius * self.zoom))
         white = (255, 255, 255)
-        font_size = max(14, int(base_zoomed_radius * 1.2))
-        label_font = pygame.font.Font(size=font_size)
+        label_font_size = max(14, int(base_zoomed_radius * 1.2))
+        label_font = pygame.font.Font(size=label_font_size)
+        cap_font_size = max(12, base_zoomed_radius)
+        cap_font = pygame.font.Font(size=cap_font_size)
         for zone in self.zones:
             x, y = self.graph.get_coords(zone)
             screen_pos = self._transform_coords(x, y)
@@ -262,10 +264,15 @@ class Visualizer:
                 pygame.draw.circle(
                     self.screen, lime, screen_pos, int(radius) + 6, 3
                 )
+            cap_text = f"cap: {capacity}"
+            cap_surface = cap_font.render(cap_text, True, (200, 200, 200))
+            cap_y = screen_pos[1] + int(radius + 12)
+            cap_rect = cap_surface.get_rect(center=(screen_pos[0], cap_y))
+            self.screen.blit(cap_surface, cap_rect)
             if zone.is_start or zone.is_end:
                 text = "START" if zone.is_start else "END"
                 text_surface = label_font.render(text, True, white)
-                ty = screen_pos[1] - int(radius + (font_size * self.zoom))
+                ty = screen_pos[1] - int(radius + 14)
                 text_rect = text_surface.get_rect(center=(screen_pos[0], ty))
                 self.screen.blit(text_surface, text_rect)
 
