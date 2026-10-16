@@ -50,6 +50,7 @@ class Visualizer:
         "silver": (192, 192, 192),
         "hotpink": (255, 105, 180),
         "black": (0, 0, 0),
+        "lightgray": (211, 211, 211),
         "maroon": (128, 0, 0),
         "gray": (128, 128, 128),
         "darkred": (139, 0, 0),
@@ -461,6 +462,47 @@ class Visualizer:
             text_rect = text_surface.get_rect(center=(x, y))
             self.screen.blit(text_surface, text_rect)
 
+    def _draw_legend(self) -> None:
+        """Draws a semi-transparent legend box explaining the controls."""
+        commands = [
+            "CONTROLS",
+            "",
+            "Play / Pause: SPACE",
+            "Reset Drones: R",
+            "Step Forward: -> (RIGHT)",
+            "Step Back: <- (LEFT)",
+            "Speed: 1, 2, 3",
+            "Pan Camera: L-CLICK",
+            "Zoom Camera: SCROLL",
+            "Toggle Help: H",
+            "Quit: ESC / Q"
+        ]
+        font = pygame.font.Font(None, 24)
+        padding = 15
+        line_spacing = 6
+        max_width = 0
+        total_height = padding * 2 - line_spacing
+        text_surfaces = []
+        for i, cmd in enumerate(commands):
+            color = self.COLORS["cyan"] if i == 0 else self.COLORS["lightgray"]
+            text_surface = font.render(cmd, True, color)
+            text_surfaces.append(text_surface)
+            max_width = max(max_width, text_surface.get_width())
+            total_height += text_surface.get_height() + line_spacing
+        box_width = max_width + padding * 2
+        box_height = total_height
+        legend_surf = pygame.Surface((box_width, box_height), pygame.SRCALPHA)
+        legend_surf.fill((20, 22, 26, 210))  # Dark background 82% opacity
+        rect = legend_surf.get_rect()
+        pygame.draw.rect(legend_surf, (100, 100, 100), rect, 1)
+        current_y = padding
+        for text_surface in text_surfaces:
+            legend_surf.blit(text_surface, (padding, current_y))
+            current_y += text_surface.get_height() + line_spacing
+        x_pos = self.width - box_width - 20
+        y_pos = self.height - box_height - 20
+        self.screen.blit(legend_surf, (x_pos, y_pos))
+
     def render(
         self, drones: list[Drone], history: list[dict[str, Zone | Connection]]
     ) -> None:
@@ -478,6 +520,7 @@ class Visualizer:
         is_playing = False
         is_stepping = False
         is_stepping_back = False
+        show_legend = True
         while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -512,12 +555,16 @@ class Visualizer:
                             current_turn -= 1
                             tick_progress = 1.0
                             is_stepping_back = True
+                    # --- CONTROL ANIMATION SPEED ---
                     elif event.key == pygame.K_1:
                         animation_speed = 0.016  # 1 turns / second
                     elif event.key == pygame.K_2:
                         animation_speed = 0.033   # 2 turns / second
                     elif event.key == pygame.K_3:
                         animation_speed = 0.05  # 3 turns / second
+                    # --- TOGGLE HELP ---
+                    elif event.key == pygame.K_h:
+                        show_legend = not show_legend
                 # --- CAMERA CONTROLS ---
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
@@ -565,6 +612,8 @@ class Visualizer:
             self._draw_connections()
             self._draw_zones()
             self._draw_drones(drones, history, current_turn, tick_progress)
+            if show_legend:
+                self._draw_legend()
             pygame.display.flip()
             self.clock.tick(60)
         pygame.quit()
