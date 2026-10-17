@@ -1,9 +1,0 @@
-nb_drones: 4
-start_hub: hub 0 0
-hub: choke 1 0 [max_drones=1]
-hub: wait 0 1 [max_drones=1]
-end_hub: goal 2 0
-connection: hub-choke [max_link_capacity=1]
-connection: choke-goal [max_link_capacity=1]
-connection: hub-wait
-connection: wait-choke
