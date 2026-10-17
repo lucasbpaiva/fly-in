@@ -1,0 +1,67 @@
+# Showcase Level: The Multi-Route Diamond
+# Tests multi-lane connections, rainbow infinite-capacity hubs, and blocked zones
+nb_drones: 24
+
+start_hub: start 0 0 [color=green]
+
+# --- THE THREE PATHS ---
+# 1. The High-Capacity Highway (Top)
+hub: top_entry 2 4 [color=cyan max_drones=8]
+hub: top_transit 4 4 [color=cyan max_drones=8]
+
+# 2. The Direct but blocked Route (Middle)
+hub: mid_fast 2 0 [color=blue max_drones=4]
+hub: mid_blocked 4 0 [zone=blocked color=red max_drones=2]
+
+# 3. The Low-Capacity Shortcuts (Bottom)
+hub: bot_entry 2 -4 [color=orange max_drones=3]
+hub: bot_maze1 3 -3 [color=orange max_drones=2]
+hub: bot_maze2 3 -5 [color=orange max_drones=2]
+hub: bot_exit 5 -4 [color=orange max_drones=3]
+
+# --- THE CONVERGENCE ---
+# Infinite capacity rainbow hub where drones gather before the final push
+hub: the_nexus 6 0 [color=rainbow max_drones=7]
+
+# --- THE POST-HUB DIAMOND ---
+hub: post_high 8 3 [color=magenta max_drones=5]
+hub: post_low 8 -3 [color=purple max_drones=5]
+
+# The final chokepoint
+hub: bottleneck 10 0 [color=yellow max_drones=6]
+
+end_hub: end 12 0 [color=gold]
+
+# --- CONNECTIONS ---
+
+# Initial split from Start
+connection: start-top_entry [max_link_capacity=4]
+connection: start-mid_fast [max_link_capacity=2]
+connection: start-bot_entry [max_link_capacity=2]
+
+# Top Highway (4 lanes)
+connection: top_entry-top_transit [max_link_capacity=4]
+connection: top_transit-the_nexus [max_link_capacity=4]
+
+# Middle Route (Fast but blocked capacity)
+connection: mid_fast-mid_blocked [max_link_capacity=2]
+connection: mid_blocked-the_nexus [max_link_capacity=2]
+
+# Bottom Shortcuts (Many 1-lane connections forcing branching)
+connection: bot_entry-bot_maze1 [max_link_capacity=1]
+connection: bot_entry-bot_maze2 [max_link_capacity=1]
+connection: bot_maze1-bot_exit [max_link_capacity=1]
+connection: bot_maze2-bot_exit [max_link_capacity=1]
+connection: bot_exit-the_nexus [max_link_capacity=2]
+
+# Post-Nexus Split
+connection: the_nexus-post_high [max_link_capacity=3]
+connection: the_nexus-post_low [max_link_capacity=3]
+connection: the_nexus-bottleneck [max_link_capacity=1]
+
+# Final funnel to the Bottleneck
+connection: post_high-bottleneck [max_link_capacity=3]
+connection: post_low-bottleneck [max_link_capacity=3]
+
+# The final sprint to the Goal
+connection: bottleneck-end [max_link_capacity=5]
