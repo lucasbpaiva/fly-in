@@ -462,6 +462,16 @@ class Visualizer:
             text_rect = text_surface.get_rect(center=(x, y))
             self.screen.blit(text_surface, text_rect)
 
+    def _draw_turn(self, turn: int) -> None:
+        """Informs current turn on screen."""
+        text = f"Turn: {turn}"
+        font = pygame.font.Font(None, 24)
+        color = self.COLORS["lightgray"]
+        text_surface = font.render(text, True, color)
+        x_pos = self.width - text_surface.get_width() - 20
+        y_pos = 20
+        self.screen.blit(text_surface, (x_pos, y_pos))
+
     def _draw_legend(self) -> None:
         """Draws a semi-transparent legend box explaining the controls."""
         commands = [
@@ -612,6 +622,7 @@ class Visualizer:
             self._draw_connections()
             self._draw_zones()
             self._draw_drones(drones, history, current_turn, tick_progress)
+            self._draw_turn(current_turn)
             if show_legend:
                 self._draw_legend()
             pygame.display.flip()
