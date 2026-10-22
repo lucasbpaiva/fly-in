@@ -23,7 +23,7 @@ The project relies on Python 3 and modern libraries for data validation and rend
 Clone the repository and install the dependencies:
 
 ```bash
-git clone <repository_url> fly-in
+git clone https://github.com/lucasbpaiva/fly-in.git fly-in
 cd fly-in
 python -m venv venv
 source venv/bin/activate
